@@ -33,3 +33,24 @@ test('does not add empty interpretation content', () => {
 
   assert.deepEqual(history, [])
 })
+
+test('keeps chart and yearly histories independently', () => {
+  const chartHistory = prependHistoryEntry([], createHistoryEntry({
+    kind: 'chart',
+    title: '命盘解读',
+    content: 'chart',
+    createdAt: 1,
+  }))
+  const yearlyHistory = prependHistoryEntry([], createHistoryEntry({
+    kind: 'fortune',
+    title: '2026 年运势',
+    content: 'fortune',
+    year: 2026,
+    createdAt: 2,
+  }))
+
+  assert.equal(chartHistory.length, 1)
+  assert.equal(yearlyHistory.length, 1)
+  assert.equal(chartHistory[0].kind, 'chart')
+  assert.equal(yearlyHistory[0].kind, 'fortune')
+})

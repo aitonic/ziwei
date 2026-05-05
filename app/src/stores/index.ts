@@ -11,7 +11,6 @@ import {
   createHistoryEntry,
   prependHistoryEntry,
   type InterpretationHistoryEntry,
-  type InterpretationHistoryKind,
 } from '@/lib/interpretation-history'
 
 /* ------------------------------------------------------------
@@ -51,6 +50,14 @@ interface ContentCacheState {
   // AI 命盘解读
   aiInterpretation: string | null
   setAiInterpretation: (content: string) => void
+  palaceInterpretations: Record<string, string>
+  setPalaceInterpretations: (content: Record<string, string>) => void
+  selectedPalace: string | null
+  isPalacePanelOpen: boolean
+  palacePanelPosition: { x: number; y: number }
+  openPalaceDetail: (palaceName: string) => void
+  closePalaceDetail: () => void
+  setPalacePanelPosition: (position: { x: number; y: number }) => void
 
   // 年度运势解读 (按年份缓存)
   yearlyFortune: Record<number, string>
@@ -63,12 +70,16 @@ interface ContentCacheState {
   setKlineGenerating: (isGenerating: boolean) => void
 
   // 最近解读历史
-  interpretationHistory: InterpretationHistoryEntry[]
-  addInterpretationHistory: (entry: {
-    kind: InterpretationHistoryKind
+  chartInterpretationHistory: InterpretationHistoryEntry[]
+  yearlyFortuneHistory: InterpretationHistoryEntry[]
+  addChartInterpretationHistory: (entry: {
     title: string
     content: string
-    year?: number
+  }) => void
+  addYearlyFortuneHistory: (entry: {
+    title: string
+    content: string
+    year: number
   }) => void
 
   // 清除所有缓存
@@ -77,11 +88,20 @@ interface ContentCacheState {
 
 export const useContentCacheStore = create<ContentCacheState>()((set) => ({
   aiInterpretation: null,
+  palaceInterpretations: {},
+  selectedPalace: null,
+  isPalacePanelOpen: false,
+  palacePanelPosition: { x: 24, y: 96 },
   yearlyFortune: {},
   klineCache: null,
-  interpretationHistory: [],
+  chartInterpretationHistory: [],
+  yearlyFortuneHistory: [],
 
   setAiInterpretation: (content) => set({ aiInterpretation: content }),
+  setPalaceInterpretations: (content) => set({ palaceInterpretations: content }),
+  openPalaceDetail: (palaceName) => set({ selectedPalace: palaceName, isPalacePanelOpen: true }),
+  closePalaceDetail: () => set({ isPalacePanelOpen: false }),
+  setPalacePanelPosition: (position) => set({ palacePanelPosition: position }),
 
   setYearlyFortune: (year, content) => set((state) => ({
     yearlyFortune: { ...state.yearlyFortune, [year]: content },
@@ -111,15 +131,25 @@ export const useContentCacheStore = create<ContentCacheState>()((set) => ({
     }
   }),
 
-  addInterpretationHistory: (entry) => set((state) => ({
-    interpretationHistory: prependHistoryEntry(
-      state.interpretationHistory,
-      createHistoryEntry(entry)
+  addChartInterpretationHistory: (entry) => set((state) => ({
+    chartInterpretationHistory: prependHistoryEntry(
+      state.chartInterpretationHistory,
+      createHistoryEntry({ ...entry, kind: 'chart' })
+    ),
+  })),
+
+  addYearlyFortuneHistory: (entry) => set((state) => ({
+    yearlyFortuneHistory: prependHistoryEntry(
+      state.yearlyFortuneHistory,
+      createHistoryEntry({ ...entry, kind: 'fortune' })
     ),
   })),
 
   clearAll: () => set({
     aiInterpretation: null,
+    palaceInterpretations: {},
+    selectedPalace: null,
+    isPalacePanelOpen: false,
     yearlyFortune: {},
     klineCache: null,
   }),

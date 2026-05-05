@@ -25,9 +25,12 @@ const TABS: Array<{ key: TabType; label: string; icon: string }> = [
 ]
 
 export default function App() {
-  const { chart } = useChartStore()
+  const { chart, birthInfo } = useChartStore()
   const [showSettings, setShowSettings] = useState(false)
   const [activeTab, setActiveTab] = useState<TabType>('chart')
+  const currentChartLabel = chart && birthInfo
+    ? `${birthInfo.year}年${birthInfo.month}月${birthInfo.day}日 · ${birthInfo.gender === 'male' ? '男' : '女'} · ${chart.fiveElementsClass}`
+    : ''
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -211,6 +214,37 @@ export default function App() {
               </div>
             ) : (
               <div className="animate-fade-in space-y-8">
+                <div
+                  className="
+                    max-w-6xl mx-auto flex flex-col sm:flex-row
+                    sm:items-center sm:justify-between gap-3
+                    px-4 py-3 rounded-xl
+                    bg-white/[0.035] border border-white/[0.07]
+                    backdrop-blur-xl
+                  "
+                >
+                  <div>
+                    <p className="text-xs text-text-muted">当前命盘</p>
+                    <p className="text-sm lg:text-base text-text-secondary">{currentChartLabel}</p>
+                  </div>
+                  <button
+                    onClick={() => useChartStore.getState().clear()}
+                    className="
+                      inline-flex items-center justify-center gap-2
+                      px-3 py-2 rounded-lg
+                      text-sm text-text-secondary
+                      bg-white/[0.04] border border-white/[0.07]
+                      hover:text-text hover:bg-white/[0.07]
+                      transition-all duration-200
+                    "
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    重新输入
+                  </button>
+                </div>
+
                 {/* 命盘 - 横向展开 */}
                 <div className="w-full">
                   <ChartDisplay />
@@ -221,23 +255,6 @@ export default function App() {
                   <AIInterpretation />
                 </div>
 
-                {/* 重新输入按钮 */}
-                <div className="text-center">
-                  <button
-                    onClick={() => useChartStore.getState().clear()}
-                    className="
-                      inline-flex items-center gap-2 px-4 py-2 rounded-lg
-                      text-sm text-text-muted
-                      hover:text-text hover:bg-white/[0.04]
-                      transition-all duration-200
-                    "
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    重新输入
-                  </button>
-                </div>
               </div>
             )
           )}

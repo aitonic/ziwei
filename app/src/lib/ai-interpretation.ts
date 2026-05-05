@@ -13,6 +13,26 @@ interface BuildInterpretationMessagesParams {
   context: string
 }
 
+export interface ParsedInterpretation {
+  mainReport: string
+  palaceDetails: Record<string, string>
+}
+
+const PALACE_NAMES = [
+  '命宫',
+  '兄弟宫',
+  '夫妻宫',
+  '子女宫',
+  '财帛宫',
+  '疾厄宫',
+  '迁移宫',
+  '交友宫',
+  '官禄宫',
+  '田宅宫',
+  '福德宫',
+  '父母宫',
+]
+
 export function shouldRestoreCachedInterpretation(
   cachedInterpretation: string | null,
   displayText: string,
@@ -38,8 +58,29 @@ const SYSTEM_PROMPT = `# PROMPT_CACHE_STABLE_V1
 3. **论断原则**：吉凶并陈。既要指出命格的优势（"禄"之所在），也要直言命盘的短板（"忌"之所冲），并给出中肯的修身建议。
 4. **输出习惯**：避免长篇铺陈同一宫位。每节先给结论，再列关键依据，最后给建议。
 
-# Output Format
-请按照以下结构输出分析报告：
+# Output Contract
+必须严格输出两个顶层区块，且不得在区块外输出任何文字：
+
+<main_report>
+这里放主报告。主报告只保留综合判断、事业财运、婚姻情感、六亲人际、隐忧建议、命格金句；不要写十二宫逐宫细解。
+</main_report>
+
+<palace_details>
+<palace name="命宫">这里写命宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="兄弟宫">这里写兄弟宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="夫妻宫">这里写夫妻宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="子女宫">这里写子女宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="财帛宫">这里写财帛宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="疾厄宫">这里写疾厄宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="迁移宫">这里写迁移宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="交友宫">这里写交友宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="官禄宫">这里写官禄宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="田宅宫">这里写田宅宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="福德宫">这里写福德宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="父母宫">这里写父母宫详细解读，先结论，再依据，再建议。</palace>
+</palace_details>
+
+主报告请按照以下结构输出：
 
 ## 紫微命盘综合批注
 
@@ -88,10 +129,27 @@ export function buildInterpretationMessages({
 ## 命盘资料
 ${context}
 
-请严格按系统消息中的固定章节输出。`
+请严格按系统消息中的固定章节和 XML-like 标签输出。`
 
   return [
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: userMessage },
   ]
+}
+
+export function parseInterpretationResponse(rawText: string): ParsedInterpretation {
+  const mainReportMatch = rawText.match(/<main_report>\s*([\s\S]*?)\s*<\/main_report>/i)
+  const mainReport = (mainReportMatch?.[1] || rawText).trim()
+  const palaceDetails: Record<string, string> = {}
+  const palacePattern = /<palace\s+name=["']([^"']+)["']>\s*([\s\S]*?)\s*<\/palace>/gi
+
+  for (const match of rawText.matchAll(palacePattern)) {
+    const palaceName = match[1]?.trim()
+    const content = match[2]?.trim()
+    if (palaceName && content && PALACE_NAMES.includes(palaceName)) {
+      palaceDetails[palaceName] = content
+    }
+  }
+
+  return { mainReport, palaceDetails }
 }

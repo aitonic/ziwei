@@ -7,9 +7,9 @@
    - 命主/身主 + 纳音五行
    ============================================================ */
 
-import { useState } from 'react'
-import { useChartStore } from '@/stores'
+import { useChartStore, useContentCacheStore } from '@/stores'
 import type { FunctionalAstrolabe } from '@/lib/astro'
+import { PalaceDetailPanel } from './PalaceDetailPanel'
 
 /* ------------------------------------------------------------
    十二宫位置映射
@@ -91,6 +91,10 @@ interface PalaceData {
   changsheng12: string
   isLife: boolean
   isBody: boolean
+}
+
+interface AdjectiveStarData {
+  name?: string
 }
 
 /* ------------------------------------------------------------
@@ -305,9 +309,9 @@ function parsePalaces(chart: FunctionalAstrolabe): PalaceData[] {
     }))
 
     // 杂曜
-    const adjectiveStars: string[] = ((palace as any).adjectiveStars || []).map(
-      (s: any) => s.name as string
-    )
+    const adjectiveStars: string[] = ((palace as { adjectiveStars?: AdjectiveStarData[] }).adjectiveStars || [])
+      .map((s) => s.name)
+      .filter((name): name is string => Boolean(name))
 
     return {
       name: palace.name as string,
@@ -331,7 +335,7 @@ function parsePalaces(chart: FunctionalAstrolabe): PalaceData[] {
 
 export function ChartDisplay() {
   const { chart, birthInfo } = useChartStore()
-  const [selectedPalace, setSelectedPalace] = useState<string | null>(null)
+  const { selectedPalace, isPalacePanelOpen, openPalaceDetail } = useContentCacheStore()
 
   if (!chart || !birthInfo) return null
 
@@ -352,8 +356,8 @@ export function ChartDisplay() {
       <PalaceCard
         key={key}
         {...palace}
-        isSelected={selectedPalace === palace.name}
-        onClick={() => setSelectedPalace(selectedPalace === palace.name ? null : palace.name)}
+        isSelected={isPalacePanelOpen && selectedPalace === palace.name}
+        onClick={() => openPalaceDetail(palace.name)}
       />
     )
   }
@@ -388,6 +392,8 @@ export function ChartDisplay() {
         {/* Row 3 */}
         {grid[3].map((p, c) => renderPalace(p, `3-${c}`))}
       </div>
+
+      <PalaceDetailPanel />
 
       {/* 图例 */}
       <div className="flex flex-wrap items-center justify-center gap-4 mt-3 pt-3 border-t border-white/[0.06] text-[10px]">

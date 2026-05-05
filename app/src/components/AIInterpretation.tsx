@@ -3,7 +3,7 @@
    丝滑流式输出 + 书法字体 + Markdown 渲染
    ============================================================ */
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChartStore, useSettingsStore, useContentCacheStore } from '@/stores'
@@ -11,17 +11,12 @@ import { extractKnowledge, buildPromptContext } from '@/knowledge'
 import { streamChat, type LLMConfig } from '@/lib/llm'
 import {
   buildInterpretationMessages,
+  parseInterpretationResponse,
   shouldRestoreCachedInterpretation,
 } from '@/lib/ai-interpretation'
 import { Button } from '@/components/ui'
 import { InterpretationHistory } from '@/components/history'
 import type { InterpretationHistoryEntry } from '@/lib/interpretation-history'
-
-/* ------------------------------------------------------------
-   字符输出速度（毫秒/字符）
-   ------------------------------------------------------------ */
-
-const CHAR_INTERVAL = 35
 
 /* ------------------------------------------------------------
    Markdown 自定义样式组件
@@ -68,65 +63,25 @@ const MarkdownComponents = {
 export function AIInterpretation() {
   const { chart, birthInfo } = useChartStore()
   const { provider, providerSettings, enableThinking, enableWebSearch, searchApiKey } = useSettingsStore()
-  const { aiInterpretation, setAiInterpretation, addInterpretationHistory } = useContentCacheStore()
+  const {
+    aiInterpretation,
+    chartInterpretationHistory,
+    setAiInterpretation,
+    setPalaceInterpretations,
+    addChartInterpretationHistory,
+  } = useContentCacheStore()
   const currentSettings = providerSettings[provider]
 
-  // 显示的文本（逐字输出）
   const [displayText, setDisplayText] = useState('')
-  // 完整文本（缓冲区）
-  const fullTextRef = useRef('')
-  // 当前显示位置
-  const displayIndexRef = useRef(0)
-  // 定时器
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  // 是否正在接收（ref 用于定时器闭包）
-  const loadingRef = useRef(false)
   const [loading, setLoading] = useState(false)
-  // 是否正在输出动画
-  const [animating, setAnimating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // 组件挂载时，如果有缓存则直接显示
   useEffect(() => {
     if (shouldRestoreCachedInterpretation(aiInterpretation, displayText, loading)) {
-      const cachedText = aiInterpretation || ''
-      setDisplayText(cachedText)
-      fullTextRef.current = cachedText
-      displayIndexRef.current = cachedText.length
+      setDisplayText(aiInterpretation || '')
     }
   }, [aiInterpretation, displayText, loading])
-
-  /* ------------------------------------------------------------
-     均匀输出字符的定时器
-     ------------------------------------------------------------ */
-
-  const startAnimation = useCallback(() => {
-    if (timerRef.current) return
-
-    setAnimating(true)
-    timerRef.current = setInterval(() => {
-      if (displayIndexRef.current < fullTextRef.current.length) {
-        displayIndexRef.current++
-        setDisplayText(fullTextRef.current.slice(0, displayIndexRef.current))
-      } else if (!loadingRef.current) {
-        // 输出完成且不再加载
-        if (timerRef.current) {
-          clearInterval(timerRef.current)
-          timerRef.current = null
-        }
-        setAnimating(false)
-      }
-    }, CHAR_INTERVAL)
-  }, [])
-
-  // 组件卸载时清理定时器
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
-    }
-  }, [])
 
   /* ------------------------------------------------------------
      开始解读
@@ -136,19 +91,11 @@ export function AIInterpretation() {
     if (!chart || !birthInfo) return
 
     // 重置状态
-    loadingRef.current = true
     setLoading(true)
     setError(null)
     setAiInterpretation('')
+    setPalaceInterpretations({})
     setDisplayText('')
-    fullTextRef.current = ''
-    displayIndexRef.current = 0
-
-    // 清理旧定时器
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
 
     try {
       // 提取知识上下文
@@ -172,45 +119,35 @@ export function AIInterpretation() {
         useServerProxy: !currentSettings.apiKey,
       }
 
-      // 启动均匀输出动画
-      startAnimation()
-
-      // 流式接收，写入缓冲区
+      let rawText = ''
       for await (const token of streamChat(config, messages)) {
-        fullTextRef.current += token
+        rawText += token
       }
 
-      // 保存到全局缓存
-      setAiInterpretation(fullTextRef.current)
-      addInterpretationHistory({
-        kind: 'chart',
+      const parsed = parseInterpretationResponse(rawText)
+      setDisplayText(parsed.mainReport)
+      setPalaceInterpretations(parsed.palaceDetails)
+      setAiInterpretation(parsed.mainReport)
+      addChartInterpretationHistory({
         title: `${birthInfo.year}-${birthInfo.month}-${birthInfo.day} 命盘解读`,
-        content: fullTextRef.current,
+        content: parsed.mainReport,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : '解读失败，请重试')
     } finally {
-      loadingRef.current = false
       setLoading(false)
     }
-  }, [chart, birthInfo, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, startAnimation, setAiInterpretation, addInterpretationHistory])
+  }, [chart, birthInfo, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, setAiInterpretation, setPalaceInterpretations, addChartInterpretationHistory])
 
   const handleSelectHistory = useCallback((entry: InterpretationHistoryEntry) => {
     setError(null)
     setLoading(false)
-    loadingRef.current = false
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-    setAnimating(false)
     setDisplayText(entry.content)
-    fullTextRef.current = entry.content
-    displayIndexRef.current = entry.content.length
+    setPalaceInterpretations({})
     if (entry.kind === 'chart') {
       setAiInterpretation(entry.content)
     }
-  }, [setAiInterpretation])
+  }, [setAiInterpretation, setPalaceInterpretations])
 
   if (!chart) return null
 
@@ -291,10 +228,6 @@ export function AIInterpretation() {
               {displayText}
             </ReactMarkdown>
 
-            {/* 光标指示器 */}
-            {animating && (
-              <span className="inline-block w-0.5 h-5 bg-gold/80 animate-pulse ml-0.5 align-middle" />
-            )}
           </div>
         )}
 
@@ -307,7 +240,11 @@ export function AIInterpretation() {
         )}
       </div>
 
-      <InterpretationHistory onSelect={handleSelectHistory} />
+      <InterpretationHistory
+        title="命盘解读历史"
+        entries={chartInterpretationHistory}
+        onSelect={handleSelectHistory}
+      />
     </div>
   )
 }

@@ -1,14 +1,13 @@
-import { useContentCacheStore } from '@/stores'
 import type { InterpretationHistoryEntry } from '@/lib/interpretation-history'
 
 interface InterpretationHistoryProps {
+  title: string
+  entries: InterpretationHistoryEntry[]
   onSelect?: (entry: InterpretationHistoryEntry) => void
 }
 
-export function InterpretationHistory({ onSelect }: InterpretationHistoryProps) {
-  const { interpretationHistory } = useContentCacheStore()
-
-  if (interpretationHistory.length === 0) return null
+export function InterpretationHistory({ title, entries, onSelect }: InterpretationHistoryProps) {
+  if (entries.length === 0) return null
 
   return (
     <section
@@ -20,13 +19,13 @@ export function InterpretationHistory({ onSelect }: InterpretationHistoryProps) 
     >
       <div className="flex items-center justify-between gap-4 mb-4">
         <h3 className="text-base lg:text-lg font-semibold text-text">
-          最近解读
+          {title}
         </h3>
         <span className="text-xs text-text-muted">近 5 轮</span>
       </div>
 
       <div className="grid gap-2">
-        {interpretationHistory.map((entry) => (
+        {entries.map((entry) => (
           <button
             key={entry.id}
             type="button"

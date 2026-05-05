@@ -182,7 +182,7 @@ function buildYearlyContext(
 export function YearlyFortune() {
   const { chart, birthInfo } = useChartStore()
   const { provider, providerSettings, enableThinking, enableWebSearch, searchApiKey } = useSettingsStore()
-  const { yearlyFortune, setYearlyFortune, addInterpretationHistory } = useContentCacheStore()
+  const { yearlyFortune, yearlyFortuneHistory, setYearlyFortune, addYearlyFortuneHistory } = useContentCacheStore()
   const currentSettings = providerSettings[provider]
 
   const [year, setYear] = useState(currentYear)
@@ -252,8 +252,7 @@ ${yearlyContext}
 
       // 保存到全局缓存
       setYearlyFortune(year, fullText)
-      addInterpretationHistory({
-        kind: 'fortune',
+      addYearlyFortuneHistory({
         title: `${year} 年度运势`,
         content: fullText,
         year,
@@ -263,7 +262,7 @@ ${yearlyContext}
     } finally {
       setLoading(false)
     }
-  }, [chart, birthInfo, year, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, setYearlyFortune, addInterpretationHistory])
+  }, [chart, birthInfo, year, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, setYearlyFortune, addYearlyFortuneHistory])
 
   const handleSelectHistory = useCallback((entry: InterpretationHistoryEntry) => {
     setError(null)
@@ -400,7 +399,11 @@ ${yearlyContext}
         )}
       </div>
 
-      <InterpretationHistory onSelect={handleSelectHistory} />
+      <InterpretationHistory
+        title="年度运势历史"
+        entries={yearlyFortuneHistory}
+        onSelect={handleSelectHistory}
+      />
     </div>
   )
 }
