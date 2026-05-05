@@ -1,0 +1,19 @@
+{
+  "$schema": "app/node_modules/wrangler/config-schema.json",
+  "name": "ziwei",
+  "main": "app/worker.js",
+  "compatibility_date": "2026-05-05",
+  "build": {
+    "command": "npm run build",
+    "cwd": "app"
+  },
+  "assets": {
+    "directory": "app/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "observability": {
+    "enabled": true
+  }
+}

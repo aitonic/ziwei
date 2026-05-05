@@ -9,6 +9,7 @@ import {
   isValidPassword,
   sanitizeNextPath,
 } from '../functions/auth.js'
+import worker from '../worker.js'
 
 test('accepts matching auth password only', () => {
   assert.equal(isValidPassword('star-pass', 'star-pass'), true)
@@ -51,3 +52,57 @@ test('keeps login redirects inside the site', () => {
   assert.equal(sanitizeNextPath('//example.com'), '/')
   assert.equal(sanitizeNextPath(''), '/')
 })
+
+test('worker redirects private pages to login without auth cookie', async () => {
+  const response = await worker.fetch(
+    new Request('https://ziwei.example/chart?tab=fortune'),
+    createEnv()
+  )
+
+  assert.equal(response.status, 302)
+  assert.equal(response.headers.get('Location'), 'https://ziwei.example/login?next=%2Fchart%3Ftab%3Dfortune')
+})
+
+test('worker serves assets when auth cookie is present', async () => {
+  const env = createEnv()
+  const response = await worker.fetch(
+    new Request('https://ziwei.example/', {
+      headers: { Cookie: `${AUTH_COOKIE_NAME}=1` },
+    }),
+    env
+  )
+
+  assert.equal(response.status, 200)
+  assert.equal(await response.text(), 'asset response')
+  assert.equal(env.assetRequests, 1)
+})
+
+test('worker sets auth cookie after correct password', async () => {
+  const body = new FormData()
+  body.set('password', 'star-pass')
+  body.set('next', '/chart')
+
+  const response = await worker.fetch(
+    new Request('https://ziwei.example/login', { method: 'POST', body }),
+    createEnv()
+  )
+
+  assert.equal(response.status, 302)
+  assert.equal(response.headers.get('Location'), '/chart')
+  assert.equal(response.headers.get('Set-Cookie'), buildAuthCookie())
+})
+
+function createEnv() {
+  const env = {
+    AUTH_PASSWORD: 'star-pass',
+    assetRequests: 0,
+    ASSETS: {
+      fetch() {
+        env.assetRequests += 1
+        return new Response('asset response')
+      },
+    },
+  }
+
+  return env
+}

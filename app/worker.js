@@ -1,0 +1,173 @@
+import {
+  buildAuthCookie,
+  hasAuthCookie,
+  isPublicPath,
+  isValidPassword,
+  sanitizeNextPath,
+} from './functions/auth.js'
+
+function renderLoginPage({ nextPath = '/', hasError = false } = {}) {
+  const escapedNextPath = nextPath.replaceAll('"', '&quot;')
+  const errorMarkup = hasError
+    ? '<p class="error">Password is incorrect.</p>'
+    : ''
+
+  return `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>紫微知道 · Access</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #090916;
+        color: #f7f2ff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          radial-gradient(circle at 20% 20%, rgba(124, 58, 237, 0.28), transparent 32%),
+          radial-gradient(circle at 80% 30%, rgba(212, 175, 55, 0.18), transparent 28%),
+          #090916;
+      }
+      main {
+        width: min(100%, 400px);
+        padding: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        background: rgba(18, 18, 35, 0.78);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+        backdrop-filter: blur(18px);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+      p {
+        margin: 0;
+        color: rgba(247, 242, 255, 0.66);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      form {
+        margin-top: 24px;
+        display: grid;
+        gap: 14px;
+      }
+      label {
+        display: grid;
+        gap: 8px;
+        color: rgba(247, 242, 255, 0.78);
+        font-size: 13px;
+      }
+      input {
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 10px;
+        padding: 12px 13px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font-size: 16px;
+        outline: none;
+      }
+      input:focus {
+        border-color: rgba(212, 175, 55, 0.75);
+        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.16);
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, #7c3aed, #d4af37);
+        color: #fff;
+        font-weight: 700;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      .error {
+        color: #fecaca;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>紫微知道</h1>
+      <p>Enter the access password to continue.</p>
+      <form method="post" action="/login">
+        <input type="hidden" name="next" value="${escapedNextPath}" />
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="current-password" required autofocus />
+        </label>
+        ${errorMarkup}
+        <button type="submit">Enter</button>
+      </form>
+    </main>
+  </body>
+</html>`
+}
+
+function redirectToLogin(request) {
+  const url = new URL(request.url)
+  const nextPath = sanitizeNextPath(`${url.pathname}${url.search}`)
+  const loginUrl = new URL('/login', url)
+  loginUrl.searchParams.set('next', nextPath)
+
+  return Response.redirect(loginUrl.toString(), 302)
+}
+
+async function handleLoginPost(request, env) {
+  const formData = await request.formData()
+  const password = String(formData.get('password') || '')
+  const nextPath = sanitizeNextPath(String(formData.get('next') || '/'))
+  const url = new URL(request.url)
+
+  if (!isValidPassword(password, env.AUTH_PASSWORD)) {
+    url.search = ''
+    url.searchParams.set('next', nextPath)
+    url.searchParams.set('error', '1')
+    return Response.redirect(url.toString(), 302)
+  }
+
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: nextPath,
+      'Set-Cookie': buildAuthCookie(),
+    },
+  })
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url)
+
+    if (url.pathname === '/login') {
+      if (request.method === 'POST') {
+        return handleLoginPost(request, env)
+      }
+
+      const nextPath = sanitizeNextPath(url.searchParams.get('next') || '/')
+      const hasError = url.searchParams.get('error') === '1'
+      return new Response(renderLoginPage({ nextPath, hasError }), {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      })
+    }
+
+    if (isPublicPath(url.pathname) || hasAuthCookie(request.headers.get('Cookie') || '')) {
+      return env.ASSETS.fetch(request)
+    }
+
+    return redirectToLogin(request)
+  },
+}
