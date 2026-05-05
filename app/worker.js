@@ -126,6 +126,289 @@ function redirectToLogin(request) {
   return Response.redirect(loginUrl.toString(), 302)
 }
 
+const PROVIDER_CONFIGS = {
+  kimi: {
+    baseUrl: 'https://api.moonshot.cn/v1',
+    defaultModel: 'kimi-k2-0905-preview',
+  },
+  gemini: {
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    defaultModel: 'gemini-3.0-flash',
+  },
+  claude: {
+    baseUrl: 'https://api.anthropic.com/v1',
+    defaultModel: 'claude-opus-4-5-20251124',
+  },
+  deepseek: {
+    baseUrl: 'https://api.deepseek.com/v1',
+    defaultModel: 'deepseek-chat',
+  },
+  custom: {
+    baseUrl: '',
+    defaultModel: '',
+  },
+}
+
+function readServerLLMConfig(env, clientConfig = {}) {
+  const provider = env.LLM_PROVIDER || clientConfig.provider || 'kimi'
+  const keyPrefix = provider.toUpperCase()
+
+  return {
+    provider,
+    apiKey: env.LLM_API_KEY || env[`${keyPrefix}_API_KEY`] || '',
+    baseUrl: env.LLM_BASE_URL || env[`${keyPrefix}_BASE_URL`] || clientConfig.baseUrl || '',
+    model: env.LLM_MODEL || env[`${keyPrefix}_MODEL`] || clientConfig.model || '',
+    enableThinking: readBoolean(env.LLM_ENABLE_THINKING, clientConfig.enableThinking),
+    enableWebSearch: readBoolean(env.LLM_ENABLE_WEB_SEARCH, clientConfig.enableWebSearch),
+  }
+}
+
+function readBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return Boolean(fallback)
+  return value === true || value === 'true' || value === '1'
+}
+
+async function handleLLMProxy(request, env) {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 })
+  }
+
+  const body = await request.json()
+  const config = readServerLLMConfig(env, body.config)
+
+  if (!config.apiKey) {
+    return new Response('Server LLM is not configured', { status: 500 })
+  }
+
+  const stream = await streamServerLLM(config, body.messages || [], env.FETCH || fetch)
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  })
+}
+
+async function streamServerLLM(config, messages, fetcher) {
+  const encoder = new TextEncoder()
+  const source = await requestProviderStream(config, messages, fetcher)
+
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const token of source) {
+          controller.enqueue(encoder.encode(token))
+        }
+        controller.close()
+      } catch (error) {
+        controller.error(error)
+      }
+    },
+  })
+}
+
+function requestProviderStream(config, messages, fetcher) {
+  if (config.provider === 'gemini') {
+    return streamGeminiFromServer(config, messages, fetcher)
+  }
+
+  if (config.provider === 'claude') {
+    return streamClaudeFromServer(config, messages, fetcher)
+  }
+
+  return streamOpenAIFromServer(config, messages, fetcher)
+}
+
+async function* streamOpenAIFromServer(config, messages, fetcher) {
+  const providerConfig = PROVIDER_CONFIGS[config.provider] || PROVIDER_CONFIGS.kimi
+  let useModel = config.model || providerConfig.defaultModel
+
+  if (config.enableThinking && !config.model) {
+    if (config.provider === 'deepseek') useModel = 'deepseek-v3.2-speciale'
+    if (config.provider === 'kimi') useModel = 'kimi-k2-thinking'
+  }
+
+  const requestBody = {
+    model: useModel,
+    messages,
+    stream: true,
+  }
+
+  if (config.enableWebSearch && config.provider === 'kimi') {
+    requestBody.tools = [{
+      type: 'builtin_function',
+      function: { name: '$web_search' },
+    }]
+  }
+
+  const response = await fetcher(`${config.baseUrl || providerConfig.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status} ${response.statusText}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error('No response body')
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const data = line.slice(6)
+      if (data === '[DONE]') return
+
+      try {
+        const json = JSON.parse(data)
+        const content = json.choices?.[0]?.delta?.content
+        if (content) yield content
+      } catch {
+        // Ignore malformed stream chunks.
+      }
+    }
+  }
+}
+
+async function* streamGeminiFromServer(config, messages, fetcher) {
+  const providerConfig = PROVIDER_CONFIGS.gemini
+  let modelName = config.model || providerConfig.defaultModel
+  if (config.enableThinking && !config.model) {
+    modelName = 'gemini-3-pro-preview'
+  }
+
+  const contents = messages
+    .filter((message) => message.role !== 'system')
+    .map((message) => ({
+      role: message.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: message.content }],
+    }))
+  const systemMessage = messages.find((message) => message.role === 'system')
+
+  const requestBody = {
+    contents,
+    systemInstruction: systemMessage ? { parts: [{ text: systemMessage.content }] } : undefined,
+  }
+
+  if (config.enableWebSearch) {
+    requestBody.tools = [{ google_search: {} }]
+  }
+
+  const response = await fetcher(
+    `${config.baseUrl || providerConfig.baseUrl}/models/${modelName}:streamGenerateContent?key=${config.apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Gemini API Error: ${response.status}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error('No response body')
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    try {
+      const matches = buffer.match(/\{[^{}]*"text"\s*:\s*"[^"]*"[^{}]*\}/g)
+      if (!matches) continue
+
+      for (const match of matches) {
+        const json = JSON.parse(match)
+        if (json.text) yield json.text
+        buffer = buffer.replace(match, '')
+      }
+    } catch {
+      // Keep reading until JSON chunks are complete.
+    }
+  }
+}
+
+async function* streamClaudeFromServer(config, messages, fetcher) {
+  const providerConfig = PROVIDER_CONFIGS.claude
+  const systemMessage = messages.find((message) => message.role === 'system')?.content || ''
+  const chatMessages = messages.filter((message) => message.role !== 'system')
+  const requestBody = {
+    model: config.model || providerConfig.defaultModel,
+    max_tokens: config.enableThinking ? 16000 : 4096,
+    system: systemMessage,
+    messages: chatMessages,
+    stream: true,
+  }
+
+  if (config.enableThinking) {
+    requestBody.thinking = {
+      type: 'enabled',
+      budget_tokens: 10000,
+    }
+  }
+
+  const response = await fetcher(`${config.baseUrl || providerConfig.baseUrl}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': config.apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Claude API Error: ${response.status}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error('No response body')
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+
+      try {
+        const json = JSON.parse(line.slice(6))
+        if (json.type === 'content_block_delta' && json.delta?.type === 'text_delta') {
+          yield json.delta.text || ''
+        }
+      } catch {
+        // Ignore malformed stream chunks.
+      }
+    }
+  }
+}
+
 async function handleLoginPost(request, env) {
   const formData = await request.formData()
   const password = String(formData.get('password') || '')
@@ -162,6 +445,14 @@ export default {
       return new Response(renderLoginPage({ nextPath, hasError }), {
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       })
+    }
+
+    if (url.pathname === '/api/llm') {
+      if (!hasAuthCookie(request.headers.get('Cookie') || '')) {
+        return redirectToLogin(request)
+      }
+
+      return handleLLMProxy(request, env)
     }
 
     if (isPublicPath(url.pathname) || hasAuthCookie(request.headers.get('Cookie') || '')) {

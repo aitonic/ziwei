@@ -13,6 +13,7 @@ export interface LLMConfig {
   enableThinking?: boolean
   enableWebSearch?: boolean
   searchApiKey?: string  // Tavily API Key
+  useServerProxy?: boolean
 }
 
 export interface ChatMessage {
@@ -506,6 +507,11 @@ export async function* streamChat(
   config: LLMConfig,
   messages: ChatMessage[]
 ): AsyncGenerator<string> {
+  if (config.useServerProxy || !config.apiKey) {
+    yield* streamServerProxy(config, messages)
+    return
+  }
+
   switch (config.provider) {
     case 'gemini':
       yield* streamGemini(config, messages)
@@ -519,6 +525,42 @@ export async function* streamChat(
     default:
       yield* streamOpenAICompatible(config, messages)
       break
+  }
+}
+
+async function* streamServerProxy(
+  config: LLMConfig,
+  messages: ChatMessage[]
+): AsyncGenerator<string> {
+  const response = await fetch('/api/llm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      config: {
+        provider: config.provider,
+        baseUrl: config.baseUrl,
+        model: config.model,
+        enableThinking: config.enableThinking,
+        enableWebSearch: config.enableWebSearch,
+      },
+      messages,
+    }),
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(message || `Server API Error: ${response.status}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error('No response body')
+
+  const decoder = new TextDecoder()
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    yield decoder.decode(value, { stream: true })
   }
 }
 

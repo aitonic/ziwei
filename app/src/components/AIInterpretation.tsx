@@ -177,10 +177,6 @@ export function AIInterpretation() {
 
   const handleInterpret = useCallback(async () => {
     if (!chart || !birthInfo) return
-    if (!currentSettings.apiKey) {
-      setError('请先在设置中配置 API Key')
-      return
-    }
 
     // 重置状态
     loadingRef.current = true
@@ -226,6 +222,7 @@ ${contextStr}
         enableThinking,
         enableWebSearch,
         searchApiKey: searchApiKey || undefined,
+        useServerProxy: !currentSettings.apiKey,
       }
 
       // 启动均匀输出动画
@@ -280,7 +277,7 @@ ${contextStr}
         </h2>
         <Button
           onClick={handleInterpret}
-          disabled={loading || !currentSettings.apiKey}
+          disabled={loading}
           size="sm"
           variant="gold"
         >
@@ -289,7 +286,7 @@ ${contextStr}
               <span className="w-3 h-3 border-2 border-night border-t-transparent rounded-full animate-spin" />
               解读中
             </span>
-          ) : currentSettings.apiKey ? '开始解读' : '请先配置 API'}
+          ) : '开始解读'}
         </Button>
       </div>
 
@@ -300,11 +297,11 @@ ${contextStr}
         </div>
       )}
 
-      {/* 未配置提示 */}
+      {/* 待解读提示 */}
       {!currentSettings.apiKey && !displayText && (
         <div className="text-text-muted text-sm py-8 text-center">
           <div className="text-3xl mb-3 opacity-30">☆</div>
-          请先在设置中配置 AI 模型的 API Key，即可获得深度命盘解读。
+          将优先使用 Cloudflare 端 API；也可在设置中填写自己的 API Key。
         </div>
       )}
 

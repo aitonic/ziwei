@@ -227,6 +227,7 @@ export function LifeKLine() {
       enableThinking,
       enableWebSearch,
       searchApiKey,
+      useServerProxy: !settings.apiKey,
     }
   }, [provider, getCurrentSettings, enableThinking, enableWebSearch, searchApiKey])
 
@@ -243,7 +244,7 @@ export function LifeKLine() {
     try {
       let lifetime: LifetimeKLinePoint[]
 
-      if (llmConfig.apiKey) {
+      if (llmConfig.apiKey || llmConfig.useServerProxy) {
         // 使用 LLM 生成 (AI 决定涨跌)
         lifetime = await generateKLinesWithLLM(
           chart,
@@ -347,7 +348,7 @@ export function LifeKLine() {
             {isGenerating ? (progress || '生成中...') : '✨ AI 生成人生 K 线'}
           </button>
           {!llmConfig.apiKey && (
-            <p className="text-text-muted text-xs">提示：配置 API Key 可使用 AI 分析命盘生成</p>
+            <p className="text-text-muted text-xs">提示：将优先使用 Cloudflare 端 API；也可在设置中填写自己的 API Key</p>
           )}
         </div>
       ) : (

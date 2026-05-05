@@ -92,6 +92,48 @@ test('worker sets auth cookie after correct password', async () => {
   assert.equal(response.headers.get('Set-Cookie'), buildAuthCookie())
 })
 
+test('worker proxies LLM requests with server env key', async () => {
+  const env = createEnv()
+  env.LLM_PROVIDER = 'kimi'
+  env.LLM_API_KEY = 'server-key'
+  env.FETCH = async (url, init) => {
+    assert.equal(url, 'https://api.moonshot.cn/v1/chat/completions')
+    assert.equal(init.headers.Authorization, 'Bearer server-key')
+    return new Response('data: {"choices":[{"delta":{"content":"hello"}}]}\n\ndata: [DONE]\n')
+  }
+
+  const response = await worker.fetch(
+    new Request('https://ziwei.example/api/llm', {
+      method: 'POST',
+      headers: {
+        Cookie: `${AUTH_COOKIE_NAME}=1`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
+    }),
+    env
+  )
+
+  assert.equal(response.status, 200)
+  assert.equal(await response.text(), 'hello')
+})
+
+test('worker rejects LLM requests without server key', async () => {
+  const response = await worker.fetch(
+    new Request('https://ziwei.example/api/llm', {
+      method: 'POST',
+      headers: { Cookie: `${AUTH_COOKIE_NAME}=1` },
+      body: JSON.stringify({ messages: [] }),
+    }),
+    createEnv()
+  )
+
+  assert.equal(response.status, 500)
+  assert.equal(await response.text(), 'Server LLM is not configured')
+})
+
 function createEnv() {
   const env = {
     AUTH_PASSWORD: 'star-pass',
