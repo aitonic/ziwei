@@ -78,7 +78,6 @@ interface ContentCacheState {
   addChartInterpretationHistory: (entry: {
     title: string
     content: string
-    palaceDetails?: Record<string, string>
   }) => void
   addYearlyFortuneHistory: (entry: {
     title: string
@@ -180,12 +179,23 @@ export const useContentCacheStore = create<ContentCacheState>()(
     {
       name: 'ziwei-interpretation-history',
       partialize: (state) => ({
-        chartInterpretationHistory: state.chartInterpretationHistory,
+        chartInterpretationHistory: state.chartInterpretationHistory.map(stripPalaceDetailsFromHistory),
         yearlyFortuneHistory: state.yearlyFortuneHistory,
       }),
     }
   )
 )
+
+function stripPalaceDetailsFromHistory(entry: InterpretationHistoryEntry): InterpretationHistoryEntry {
+  return {
+    id: entry.id,
+    kind: entry.kind,
+    title: entry.title,
+    content: entry.content,
+    createdAt: entry.createdAt,
+    year: entry.year,
+  }
+}
 
 /* ------------------------------------------------------------
    设置状态

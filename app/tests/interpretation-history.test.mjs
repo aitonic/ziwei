@@ -95,6 +95,19 @@ test('keeps chart and yearly histories independently', () => {
   assert.equal(yearlyHistory[0].kind, 'fortune')
 })
 
+test('allows chart history without palace detail JSON', () => {
+  const history = prependHistoryEntry([], createHistoryEntry({
+    kind: 'chart',
+    title: '命盘解读',
+    content: 'main report only',
+    createdAt: 1,
+  }))
+
+  assert.equal(history.length, 1)
+  assert.equal(history[0].content, 'main report only')
+  assert.equal(history[0].palaceDetails, undefined)
+})
+
 test('removes one history entry by id', () => {
   const first = createHistoryEntry({
     kind: 'chart',

@@ -166,7 +166,6 @@ export function AIInterpretation() {
       addChartInterpretationHistory({
         title: `${birthInfo.year}-${birthInfo.month}-${birthInfo.day} 命盘解读`,
         content: parsed.mainReport,
-        palaceDetails,
       })
     } catch (err) {
       setPalaceDetailStatus('error')
@@ -181,8 +180,8 @@ export function AIInterpretation() {
     setError(null)
     setLoading(false)
     setDisplayText(entry.content)
-    setPalaceInterpretations(entry.palaceDetails || {})
-    setPalaceDetailStatus(entry.palaceDetails && Object.keys(entry.palaceDetails).length > 0 ? 'ready' : 'idle')
+    setPalaceInterpretations({})
+    setPalaceDetailStatus('idle')
     if (entry.kind === 'chart') {
       setAiInterpretation(entry.content)
     }
