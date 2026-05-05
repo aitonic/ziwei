@@ -146,6 +146,11 @@ interface PalaceCardProps extends PalaceData {
   onClick?: (event: React.MouseEvent<HTMLDivElement>) => void
 }
 
+interface GridPosition {
+  row: number
+  col: number
+}
+
 function PalaceCard({
   name, stem, branch, majorStars, minorStars, adjectiveStars, decadal,
   boshi12, changsheng12, isLife, isBody, isSelected, onClick
@@ -351,14 +356,17 @@ export function ChartDisplay() {
   const solarDate = `${birthInfo.year}年${birthInfo.month}月${birthInfo.day}日`
   const gender = birthInfo.gender === 'male' ? '男' : '女'
 
-  const renderPalace = (palace: PalaceData | null, key: string) => {
+  const renderPalace = (palace: PalaceData | null, key: string, position: GridPosition) => {
     if (!palace) return <div key={key} />
     return (
       <PalaceCard
         key={key}
         {...palace}
         isSelected={isPalacePanelOpen && selectedPalace === toPalaceDetailName(palace.name)}
-        onClick={(event) => openPalaceDetail(toPalaceDetailName(palace.name), getPanelPosition(event.currentTarget))}
+        onClick={(event) => openPalaceDetail(
+          toPalaceDetailName(palace.name),
+          getPanelPosition(event.currentTarget, position)
+        )}
       />
     )
   }
@@ -370,28 +378,28 @@ export function ChartDisplay() {
       backdrop-blur-xl border border-white/[0.08] rounded-2xl
       shadow-[0_8px_32px_rgba(0,0,0,0.3)]
       max-w-6xl mx-auto
-    ">
+    " data-chart-shell>
       {/* 顶部发光线 */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-px bg-gradient-to-r from-transparent via-star/50 to-transparent" />
 
       {/* 4x4 网格 */}
       <div className="grid grid-cols-4 gap-1.5 lg:gap-2">
         {/* Row 0 */}
-        {grid[0].map((p, c) => renderPalace(p, `0-${c}`))}
+        {grid[0].map((p, c) => renderPalace(p, `0-${c}`, { row: 0, col: c }))}
 
         {/* Row 1: left + center(2x2) + right */}
-        {renderPalace(grid[1][0], '1-0')}
+        {renderPalace(grid[1][0], '1-0', { row: 1, col: 0 })}
         <div className="col-span-2 row-span-2">
           <CenterInfo chart={chart} solarDate={solarDate} gender={gender} />
         </div>
-        {renderPalace(grid[1][3], '1-3')}
+        {renderPalace(grid[1][3], '1-3', { row: 1, col: 3 })}
 
         {/* Row 2: left + right (center already spans) */}
-        {renderPalace(grid[2][0], '2-0')}
-        {renderPalace(grid[2][3], '2-3')}
+        {renderPalace(grid[2][0], '2-0', { row: 2, col: 0 })}
+        {renderPalace(grid[2][3], '2-3', { row: 2, col: 3 })}
 
         {/* Row 3 */}
-        {grid[3].map((p, c) => renderPalace(p, `3-${c}`))}
+        {grid[3].map((p, c) => renderPalace(p, `3-${c}`, { row: 3, col: c }))}
       </div>
 
       <PalaceDetailPanel />
@@ -425,20 +433,65 @@ export function ChartDisplay() {
   )
 }
 
-function getPanelPosition(element: HTMLElement): { x: number; y: number } {
+const PANEL_WIDTH = 380
+const PANEL_HEIGHT = 460
+const PANEL_GAP = 12
+const VIEWPORT_GAP = 12
+
+function getPanelPosition(element: HTMLElement, position: GridPosition): { x: number; y: number } {
   const rect = element.getBoundingClientRect()
+  const chartRect = element.closest('[data-chart-shell]')?.getBoundingClientRect()
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
-  const panelWidth = Math.min(380, viewportWidth * 0.92)
-  const panelHeight = Math.min(460, viewportHeight * 0.7)
-  const rightSideX = rect.right + 12
-  const leftSideX = rect.left - panelWidth - 12
-  const x = rightSideX + panelWidth <= viewportWidth - 8
-    ? rightSideX
-    : Math.max(8, leftSideX)
+  const panelWidth = Math.min(PANEL_WIDTH, viewportWidth * 0.92)
+  const panelHeight = Math.min(PANEL_HEIGHT, viewportHeight * 0.7)
+  const maxX = Math.max(VIEWPORT_GAP, viewportWidth - panelWidth - VIEWPORT_GAP)
+  const maxY = Math.max(VIEWPORT_GAP, viewportHeight - panelHeight - VIEWPORT_GAP)
+
+  if (viewportWidth < 768) {
+    return {
+      x: clamp((viewportWidth - panelWidth) / 2, VIEWPORT_GAP, maxX),
+      y: clamp(viewportHeight - panelHeight - 18, VIEWPORT_GAP, maxY),
+    }
+  }
+
+  const shell = chartRect || rect
+  const centerX = rect.left + rect.width / 2
+  const centerY = rect.top + rect.height / 2
+  const isLeftEdge = position.col === 0
+  const isRightEdge = position.col === 3
+  const isTopEdge = position.row === 0
+  const isBottomEdge = position.row === 3
+
+  let x = centerX - panelWidth / 2
+  let y = centerY - panelHeight / 2
+
+  if (isLeftEdge) {
+    x = shell.left - panelWidth - PANEL_GAP
+    if (x < VIEWPORT_GAP) x = rect.right + PANEL_GAP
+  } else if (isRightEdge) {
+    x = shell.right + PANEL_GAP
+    if (x + panelWidth > viewportWidth - VIEWPORT_GAP) x = rect.left - panelWidth - PANEL_GAP
+  } else if (isTopEdge) {
+    y = shell.top - panelHeight - PANEL_GAP
+    if (y < VIEWPORT_GAP) y = rect.bottom + PANEL_GAP
+  } else if (isBottomEdge) {
+    y = shell.bottom + PANEL_GAP
+    if (y + panelHeight > viewportHeight - VIEWPORT_GAP) y = rect.top - panelHeight - PANEL_GAP
+  }
+
+  if (isTopEdge) {
+    y = y < VIEWPORT_GAP ? rect.bottom + PANEL_GAP : y
+  } else if (isBottomEdge) {
+    y = y + panelHeight > viewportHeight - VIEWPORT_GAP ? rect.top - panelHeight - PANEL_GAP : y
+  }
 
   return {
-    x: Math.min(Math.max(8, x), Math.max(8, viewportWidth - panelWidth - 8)),
-    y: Math.min(Math.max(8, rect.top), Math.max(8, viewportHeight - panelHeight - 8)),
+    x: clamp(x, VIEWPORT_GAP, maxX),
+    y: clamp(y, VIEWPORT_GAP, maxY),
   }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(min, value), max)
 }

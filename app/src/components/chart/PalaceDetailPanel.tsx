@@ -6,6 +6,7 @@ import { toPalaceDetailName } from '@/lib/palace-interpretation'
 
 const PANEL_WIDTH = 380
 const PANEL_HEIGHT = 460
+const VIEWPORT_GAP = 12
 
 export function PalaceDetailPanel() {
   const {
@@ -27,11 +28,13 @@ export function PalaceDetailPanel() {
     }
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      const maxX = Math.max(8, window.innerWidth - PANEL_WIDTH - 8)
-      const maxY = Math.max(8, window.innerHeight - PANEL_HEIGHT - 8)
+      const panelWidth = Math.min(PANEL_WIDTH, window.innerWidth * 0.92)
+      const panelHeight = Math.min(PANEL_HEIGHT, window.innerHeight * 0.7)
+      const maxX = Math.max(VIEWPORT_GAP, window.innerWidth - panelWidth - VIEWPORT_GAP)
+      const maxY = Math.max(VIEWPORT_GAP, window.innerHeight - panelHeight - VIEWPORT_GAP)
       setPalacePanelPosition({
-        x: Math.min(Math.max(8, moveEvent.clientX - dragOffsetRef.current.x), maxX),
-        y: Math.min(Math.max(8, moveEvent.clientY - dragOffsetRef.current.y), maxY),
+        x: Math.min(Math.max(VIEWPORT_GAP, moveEvent.clientX - dragOffsetRef.current.x), maxX),
+        y: Math.min(Math.max(VIEWPORT_GAP, moveEvent.clientY - dragOffsetRef.current.y), maxY),
       })
     }
 
@@ -60,6 +63,7 @@ export function PalaceDetailPanel() {
         bg-night/95 backdrop-blur-2xl
         border border-white/[0.12]
         shadow-[0_24px_80px_rgba(0,0,0,0.45)]
+        transition-[left,top] duration-150 ease-out
       "
       style={{ left: palacePanelPosition.x, top: palacePanelPosition.y }}
     >
