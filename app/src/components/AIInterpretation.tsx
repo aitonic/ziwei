@@ -74,6 +74,7 @@ export function AIInterpretation() {
     setPalaceInterpretations,
     setPalaceDetailStatus,
     addChartInterpretationHistory,
+    deleteChartInterpretationHistory,
   } = useContentCacheStore()
   const currentSettings = providerSettings[provider]
 
@@ -278,6 +279,7 @@ export function AIInterpretation() {
         title="命盘解读历史"
         entries={chartInterpretationHistory}
         onSelect={handleSelectHistory}
+        onDelete={deleteChartInterpretationHistory}
       />
     </div>
   )

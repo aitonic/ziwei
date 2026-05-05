@@ -4,6 +4,7 @@ import {
   HISTORY_LIMIT,
   createHistoryEntry,
   prependHistoryEntry,
+  removeHistoryEntry,
 } from '../src/lib/interpretation-history.ts'
 
 test('keeps latest interpretation history first and limits to five', () => {
@@ -53,4 +54,23 @@ test('keeps chart and yearly histories independently', () => {
   assert.equal(yearlyHistory.length, 1)
   assert.equal(chartHistory[0].kind, 'chart')
   assert.equal(yearlyHistory[0].kind, 'fortune')
+})
+
+test('removes one history entry by id', () => {
+  const first = createHistoryEntry({
+    kind: 'chart',
+    title: 'first',
+    content: 'first content',
+    createdAt: 1,
+  })
+  const second = createHistoryEntry({
+    kind: 'chart',
+    title: 'second',
+    content: 'second content',
+    createdAt: 2,
+  })
+
+  const history = removeHistoryEntry([second, first], first.id)
+
+  assert.deepEqual(history.map((entry) => entry.id), [second.id])
 })

@@ -182,7 +182,13 @@ function buildYearlyContext(
 export function YearlyFortune() {
   const { chart, birthInfo } = useChartStore()
   const { provider, providerSettings, enableThinking, enableWebSearch, searchApiKey } = useSettingsStore()
-  const { yearlyFortune, yearlyFortuneHistory, setYearlyFortune, addYearlyFortuneHistory } = useContentCacheStore()
+  const {
+    yearlyFortune,
+    yearlyFortuneHistory,
+    setYearlyFortune,
+    addYearlyFortuneHistory,
+    deleteYearlyFortuneHistory,
+  } = useContentCacheStore()
   const currentSettings = providerSettings[provider]
 
   const [year, setYear] = useState(currentYear)
@@ -403,6 +409,7 @@ ${yearlyContext}
         title="年度运势历史"
         entries={yearlyFortuneHistory}
         onSelect={handleSelectHistory}
+        onDelete={deleteYearlyFortuneHistory}
       />
     </div>
   )

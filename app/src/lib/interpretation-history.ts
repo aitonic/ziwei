@@ -50,3 +50,10 @@ export function prependHistoryEntry(
 
   return [entry, ...history].slice(0, HISTORY_LIMIT)
 }
+
+export function removeHistoryEntry(
+  history: InterpretationHistoryEntry[],
+  entryId: string
+): InterpretationHistoryEntry[] {
+  return history.filter((entry) => entry.id !== entryId)
+}

@@ -10,6 +10,7 @@ import type { LifetimeKLinePoint } from '@/lib/fortune-score'
 import {
   createHistoryEntry,
   prependHistoryEntry,
+  removeHistoryEntry,
   type InterpretationHistoryEntry,
 } from '@/lib/interpretation-history'
 
@@ -84,86 +85,107 @@ interface ContentCacheState {
     content: string
     year: number
   }) => void
+  deleteChartInterpretationHistory: (entryId: string) => void
+  deleteYearlyFortuneHistory: (entryId: string) => void
 
   // 清除所有缓存
   clearAll: () => void
 }
 
-export const useContentCacheStore = create<ContentCacheState>()((set) => ({
-  aiInterpretation: null,
-  palaceInterpretations: {},
-  palaceDetailStatus: 'idle',
-  selectedPalace: null,
-  isPalacePanelOpen: false,
-  palacePanelPosition: { x: 24, y: 96 },
-  yearlyFortune: {},
-  klineCache: null,
-  chartInterpretationHistory: [],
-  yearlyFortuneHistory: [],
+export const useContentCacheStore = create<ContentCacheState>()(
+  persist(
+    (set) => ({
+      aiInterpretation: null,
+      palaceInterpretations: {},
+      palaceDetailStatus: 'idle',
+      selectedPalace: null,
+      isPalacePanelOpen: false,
+      palacePanelPosition: { x: 24, y: 96 },
+      yearlyFortune: {},
+      klineCache: null,
+      chartInterpretationHistory: [],
+      yearlyFortuneHistory: [],
 
-  setAiInterpretation: (content) => set({ aiInterpretation: content }),
-  setPalaceInterpretations: (content) => set({ palaceInterpretations: content }),
-  setPalaceDetailStatus: (status) => set({ palaceDetailStatus: status }),
-  openPalaceDetail: (palaceName, position) => set((state) => ({
-    selectedPalace: palaceName,
-    isPalacePanelOpen: true,
-    palacePanelPosition: position || state.palacePanelPosition,
-  })),
-  closePalaceDetail: () => set({ isPalacePanelOpen: false }),
-  setPalacePanelPosition: (position) => set({ palacePanelPosition: position }),
+      setAiInterpretation: (content) => set({ aiInterpretation: content }),
+      setPalaceInterpretations: (content) => set({ palaceInterpretations: content }),
+      setPalaceDetailStatus: (status) => set({ palaceDetailStatus: status }),
+      openPalaceDetail: (palaceName, position) => set((state) => ({
+        selectedPalace: palaceName,
+        isPalacePanelOpen: true,
+        palacePanelPosition: position || state.palacePanelPosition,
+      })),
+      closePalaceDetail: () => set({ isPalacePanelOpen: false }),
+      setPalacePanelPosition: (position) => set({ palacePanelPosition: position }),
 
-  setYearlyFortune: (year, content) => set((state) => ({
-    yearlyFortune: { ...state.yearlyFortune, [year]: content },
-  })),
+      setYearlyFortune: (year, content) => set((state) => ({
+        yearlyFortune: { ...state.yearlyFortune, [year]: content },
+      })),
 
-  setKlineCache: (cache) => set({ klineCache: cache }),
+      setKlineCache: (cache) => set({ klineCache: cache }),
 
-  updateKlineReasons: (reasons) => set((state) => {
-    if (!state.klineCache) return state
-    const updatedLifetime = state.klineCache.lifetime.map(point => {
-      const found = reasons.find(r => r.age === point.age)
-      return found ? { ...point, reason: found.reason } : point
-    })
-    return {
-      klineCache: {
-        ...state.klineCache,
-        lifetime: updatedLifetime,
-        isGenerating: false,
-      },
+      updateKlineReasons: (reasons) => set((state) => {
+        if (!state.klineCache) return state
+        const updatedLifetime = state.klineCache.lifetime.map(point => {
+          const found = reasons.find(r => r.age === point.age)
+          return found ? { ...point, reason: found.reason } : point
+        })
+        return {
+          klineCache: {
+            ...state.klineCache,
+            lifetime: updatedLifetime,
+            isGenerating: false,
+          },
+        }
+      }),
+
+      setKlineGenerating: (isGenerating) => set((state) => {
+        if (!state.klineCache) return state
+        return {
+          klineCache: { ...state.klineCache, isGenerating },
+        }
+      }),
+
+      addChartInterpretationHistory: (entry) => set((state) => ({
+        chartInterpretationHistory: prependHistoryEntry(
+          state.chartInterpretationHistory,
+          createHistoryEntry({ ...entry, kind: 'chart' })
+        ),
+      })),
+
+      addYearlyFortuneHistory: (entry) => set((state) => ({
+        yearlyFortuneHistory: prependHistoryEntry(
+          state.yearlyFortuneHistory,
+          createHistoryEntry({ ...entry, kind: 'fortune' })
+        ),
+      })),
+
+      deleteChartInterpretationHistory: (entryId) => set((state) => ({
+        chartInterpretationHistory: removeHistoryEntry(state.chartInterpretationHistory, entryId),
+      })),
+
+      deleteYearlyFortuneHistory: (entryId) => set((state) => ({
+        yearlyFortuneHistory: removeHistoryEntry(state.yearlyFortuneHistory, entryId),
+      })),
+
+      clearAll: () => set({
+        aiInterpretation: null,
+        palaceInterpretations: {},
+        palaceDetailStatus: 'idle',
+        selectedPalace: null,
+        isPalacePanelOpen: false,
+        yearlyFortune: {},
+        klineCache: null,
+      }),
+    }),
+    {
+      name: 'ziwei-interpretation-history',
+      partialize: (state) => ({
+        chartInterpretationHistory: state.chartInterpretationHistory,
+        yearlyFortuneHistory: state.yearlyFortuneHistory,
+      }),
     }
-  }),
-
-  setKlineGenerating: (isGenerating) => set((state) => {
-    if (!state.klineCache) return state
-    return {
-      klineCache: { ...state.klineCache, isGenerating },
-    }
-  }),
-
-  addChartInterpretationHistory: (entry) => set((state) => ({
-    chartInterpretationHistory: prependHistoryEntry(
-      state.chartInterpretationHistory,
-      createHistoryEntry({ ...entry, kind: 'chart' })
-    ),
-  })),
-
-  addYearlyFortuneHistory: (entry) => set((state) => ({
-    yearlyFortuneHistory: prependHistoryEntry(
-      state.yearlyFortuneHistory,
-      createHistoryEntry({ ...entry, kind: 'fortune' })
-    ),
-  })),
-
-  clearAll: () => set({
-    aiInterpretation: null,
-    palaceInterpretations: {},
-    palaceDetailStatus: 'idle',
-    selectedPalace: null,
-    isPalacePanelOpen: false,
-    yearlyFortune: {},
-    klineCache: null,
-  }),
-}))
+  )
+)
 
 /* ------------------------------------------------------------
    设置状态
