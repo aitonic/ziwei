@@ -14,6 +14,8 @@ import {
   shouldRestoreCachedInterpretation,
 } from '@/lib/ai-interpretation'
 import { Button } from '@/components/ui'
+import { InterpretationHistory } from '@/components/history'
+import type { InterpretationHistoryEntry } from '@/lib/interpretation-history'
 
 /* ------------------------------------------------------------
    字符输出速度（毫秒/字符）
@@ -66,7 +68,7 @@ const MarkdownComponents = {
 export function AIInterpretation() {
   const { chart, birthInfo } = useChartStore()
   const { provider, providerSettings, enableThinking, enableWebSearch, searchApiKey } = useSettingsStore()
-  const { aiInterpretation, setAiInterpretation } = useContentCacheStore()
+  const { aiInterpretation, setAiInterpretation, addInterpretationHistory } = useContentCacheStore()
   const currentSettings = providerSettings[provider]
 
   // 显示的文本（逐字输出）
@@ -180,106 +182,132 @@ export function AIInterpretation() {
 
       // 保存到全局缓存
       setAiInterpretation(fullTextRef.current)
+      addInterpretationHistory({
+        kind: 'chart',
+        title: `${birthInfo.year}-${birthInfo.month}-${birthInfo.day} 命盘解读`,
+        content: fullTextRef.current,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : '解读失败，请重试')
     } finally {
       loadingRef.current = false
       setLoading(false)
     }
-  }, [chart, birthInfo, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, startAnimation, setAiInterpretation])
+  }, [chart, birthInfo, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, startAnimation, setAiInterpretation, addInterpretationHistory])
+
+  const handleSelectHistory = useCallback((entry: InterpretationHistoryEntry) => {
+    setError(null)
+    setLoading(false)
+    loadingRef.current = false
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    setAnimating(false)
+    setDisplayText(entry.content)
+    fullTextRef.current = entry.content
+    displayIndexRef.current = entry.content.length
+    if (entry.kind === 'chart') {
+      setAiInterpretation(entry.content)
+    }
+  }, [setAiInterpretation])
 
   if (!chart) return null
 
   return (
-    <div
-      className="
-        relative p-6 lg:p-8
-        bg-gradient-to-br from-white/[0.04] to-transparent
-        backdrop-blur-xl border border-white/[0.08] rounded-2xl
-        shadow-[0_8px_32px_rgba(0,0,0,0.3)]
-      "
-    >
-      {/* 顶部发光线 */}
+    <div className="space-y-4">
       <div
         className="
-          absolute top-0 left-1/2 -translate-x-1/2
-          w-1/3 h-px
-          bg-gradient-to-r from-transparent via-gold/50 to-transparent
+          relative p-6 lg:p-8
+          bg-gradient-to-br from-white/[0.04] to-transparent
+          backdrop-blur-xl border border-white/[0.08] rounded-2xl
+          shadow-[0_8px_32px_rgba(0,0,0,0.3)]
         "
-      />
-
-      {/* 头部 */}
-      <div className="flex items-center justify-between mb-6">
-        <h2
-          className="
-            text-xl lg:text-2xl font-semibold
-            bg-gradient-to-r from-gold via-gold-light to-gold
-            bg-clip-text text-transparent
-          "
-          style={{ fontFamily: 'var(--font-serif)' }}
-        >
-          AI 命盘解读
-        </h2>
-        <Button
-          onClick={handleInterpret}
-          disabled={loading}
-          size="sm"
-          variant="gold"
-        >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <span className="w-3 h-3 border-2 border-night border-t-transparent rounded-full animate-spin" />
-              解读中
-            </span>
-          ) : '开始解读'}
-        </Button>
-      </div>
-
-      {/* 错误提示 */}
-      {error && (
-        <div className="p-3 rounded-lg bg-misfortune/10 text-misfortune text-sm mb-4 border border-misfortune/20">
-          {error}
-        </div>
-      )}
-
-      {/* 待解读提示 */}
-      {!currentSettings.apiKey && !displayText && (
-        <div className="text-text-muted text-sm py-8 text-center">
-          <div className="text-3xl mb-3 opacity-30">☆</div>
-          将优先使用 Cloudflare 端 API；也可在设置中填写自己的 API Key。
-        </div>
-      )}
-
-      {/* 解读内容 - 书法字体 + Markdown 渲染 */}
-      {displayText && (
+      >
+        {/* 顶部发光线 */}
         <div
           className="
-            prose prose-invert max-w-none
-            text-text-secondary text-lg lg:text-xl leading-loose
+            absolute top-0 left-1/2 -translate-x-1/2
+            w-1/3 h-px
+            bg-gradient-to-r from-transparent via-gold/50 to-transparent
           "
-          style={{ fontFamily: 'var(--font-brush)' }}
-        >
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={MarkdownComponents}
+        />
+
+        {/* 头部 */}
+        <div className="flex items-center justify-between mb-6">
+          <h2
+            className="
+              text-xl lg:text-2xl font-semibold
+              bg-gradient-to-r from-gold via-gold-light to-gold
+              bg-clip-text text-transparent
+            "
+            style={{ fontFamily: 'var(--font-serif)' }}
           >
-            {displayText}
-          </ReactMarkdown>
-
-          {/* 光标指示器 */}
-          {animating && (
-            <span className="inline-block w-0.5 h-5 bg-gold/80 animate-pulse ml-0.5 align-middle" />
-          )}
+            AI 命盘解读
+          </h2>
+          <Button
+            onClick={handleInterpret}
+            disabled={loading}
+            size="sm"
+            variant="gold"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 border-2 border-night border-t-transparent rounded-full animate-spin" />
+                解读中
+              </span>
+            ) : '开始解读'}
+          </Button>
         </div>
-      )}
 
-      {/* 加载占位 */}
-      {loading && !displayText && (
-        <div className="flex items-center justify-center gap-3 text-text-muted py-12">
-          <div className="w-5 h-5 border-2 border-star border-t-transparent rounded-full animate-spin" />
-          <span>正在分析命盘...</span>
-        </div>
-      )}
+        {/* 错误提示 */}
+        {error && (
+          <div className="p-3 rounded-lg bg-misfortune/10 text-misfortune text-sm mb-4 border border-misfortune/20">
+            {error}
+          </div>
+        )}
+
+        {/* 待解读提示 */}
+        {!currentSettings.apiKey && !displayText && (
+          <div className="text-text-muted text-sm py-8 text-center">
+            <div className="text-3xl mb-3 opacity-30">☆</div>
+            将优先使用 Cloudflare 端 API；也可在设置中填写自己的 API Key。
+          </div>
+        )}
+
+        {/* 解读内容 - 书法字体 + Markdown 渲染 */}
+        {displayText && (
+          <div
+            className="
+              prose prose-invert max-w-none
+              text-text-secondary text-lg lg:text-xl leading-loose
+            "
+            style={{ fontFamily: 'var(--font-brush)' }}
+          >
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={MarkdownComponents}
+            >
+              {displayText}
+            </ReactMarkdown>
+
+            {/* 光标指示器 */}
+            {animating && (
+              <span className="inline-block w-0.5 h-5 bg-gold/80 animate-pulse ml-0.5 align-middle" />
+            )}
+          </div>
+        )}
+
+        {/* 加载占位 */}
+        {loading && !displayText && (
+          <div className="flex items-center justify-center gap-3 text-text-muted py-12">
+            <div className="w-5 h-5 border-2 border-star border-t-transparent rounded-full animate-spin" />
+            <span>正在分析命盘...</span>
+          </div>
+        )}
+      </div>
+
+      <InterpretationHistory onSelect={handleSelectHistory} />
     </div>
   )
 }

@@ -141,7 +141,7 @@ const PROVIDER_CONFIGS = {
   },
   deepseek: {
     baseUrl: 'https://api.deepseek.com/v1',
-    defaultModel: 'deepseek-chat',
+    defaultModel: 'deepseek-v4-pro',
   },
   custom: {
     baseUrl: '',

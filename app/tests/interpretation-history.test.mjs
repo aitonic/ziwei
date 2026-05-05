@@ -1,0 +1,35 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {
+  HISTORY_LIMIT,
+  createHistoryEntry,
+  prependHistoryEntry,
+} from '../src/lib/interpretation-history.ts'
+
+test('keeps latest interpretation history first and limits to five', () => {
+  let history = []
+
+  for (let index = 1; index <= 6; index++) {
+    history = prependHistoryEntry(history, createHistoryEntry({
+      kind: 'chart',
+      title: `第 ${index} 次`,
+      content: `content ${index}`,
+      createdAt: index,
+    }))
+  }
+
+  assert.equal(history.length, HISTORY_LIMIT)
+  assert.deepEqual(history.map((entry) => entry.title), ['第 6 次', '第 5 次', '第 4 次', '第 3 次', '第 2 次'])
+})
+
+test('does not add empty interpretation content', () => {
+  const history = prependHistoryEntry([], createHistoryEntry({
+    kind: 'fortune',
+    title: '2026 年运势',
+    content: '   ',
+    year: 2026,
+    createdAt: 1,
+  }))
+
+  assert.deepEqual(history, [])
+})

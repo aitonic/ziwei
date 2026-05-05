@@ -131,7 +131,7 @@ test('worker ignores custom defaults when provider is overridden', async () => {
   env.FETCH = async (url, init) => {
     assert.equal(url, 'https://api.deepseek.com/v1/chat/completions')
     const body = JSON.parse(init.body)
-    assert.equal(body.model, 'deepseek-chat')
+    assert.equal(body.model, 'deepseek-v4-pro')
     assert.equal(body.tools, undefined)
     return new Response('data: {"choices":[{"delta":{"content":"deepseek"}}]}\n\ndata: [DONE]\n')
   }

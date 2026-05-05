@@ -7,6 +7,12 @@ import { persist } from 'zustand/middleware'
 import type { FunctionalAstrolabe } from '@/lib/astro'
 import type { BirthInfo } from '@/lib/astro'
 import type { LifetimeKLinePoint } from '@/lib/fortune-score'
+import {
+  createHistoryEntry,
+  prependHistoryEntry,
+  type InterpretationHistoryEntry,
+  type InterpretationHistoryKind,
+} from '@/lib/interpretation-history'
 
 /* ------------------------------------------------------------
    命盘状态
@@ -56,6 +62,15 @@ interface ContentCacheState {
   updateKlineReasons: (reasons: { age: number; reason: string }[]) => void
   setKlineGenerating: (isGenerating: boolean) => void
 
+  // 最近解读历史
+  interpretationHistory: InterpretationHistoryEntry[]
+  addInterpretationHistory: (entry: {
+    kind: InterpretationHistoryKind
+    title: string
+    content: string
+    year?: number
+  }) => void
+
   // 清除所有缓存
   clearAll: () => void
 }
@@ -64,6 +79,7 @@ export const useContentCacheStore = create<ContentCacheState>()((set) => ({
   aiInterpretation: null,
   yearlyFortune: {},
   klineCache: null,
+  interpretationHistory: [],
 
   setAiInterpretation: (content) => set({ aiInterpretation: content }),
 
@@ -94,6 +110,13 @@ export const useContentCacheStore = create<ContentCacheState>()((set) => ({
       klineCache: { ...state.klineCache, isGenerating },
     }
   }),
+
+  addInterpretationHistory: (entry) => set((state) => ({
+    interpretationHistory: prependHistoryEntry(
+      state.interpretationHistory,
+      createHistoryEntry(entry)
+    ),
+  })),
 
   clearAll: () => set({
     aiInterpretation: null,

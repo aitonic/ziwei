@@ -10,6 +10,8 @@ import { useChartStore, useSettingsStore, useContentCacheStore } from '@/stores'
 import { streamChat, type ChatMessage, type LLMConfig } from '@/lib/llm'
 import { extractKnowledge, buildPromptContext } from '@/knowledge'
 import { Button, Select } from '@/components/ui'
+import { InterpretationHistory } from '@/components/history'
+import type { InterpretationHistoryEntry } from '@/lib/interpretation-history'
 
 /* ------------------------------------------------------------
    年份选项
@@ -180,7 +182,7 @@ function buildYearlyContext(
 export function YearlyFortune() {
   const { chart, birthInfo } = useChartStore()
   const { provider, providerSettings, enableThinking, enableWebSearch, searchApiKey } = useSettingsStore()
-  const { yearlyFortune, setYearlyFortune } = useContentCacheStore()
+  const { yearlyFortune, setYearlyFortune, addInterpretationHistory } = useContentCacheStore()
   const currentSettings = providerSettings[provider]
 
   const [year, setYear] = useState(currentYear)
@@ -250,12 +252,27 @@ ${yearlyContext}
 
       // 保存到全局缓存
       setYearlyFortune(year, fullText)
+      addInterpretationHistory({
+        kind: 'fortune',
+        title: `${year} 年度运势`,
+        content: fullText,
+        year,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析失败，请重试')
     } finally {
       setLoading(false)
     }
-  }, [chart, birthInfo, year, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, setYearlyFortune])
+  }, [chart, birthInfo, year, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, setYearlyFortune, addInterpretationHistory])
+
+  const handleSelectHistory = useCallback((entry: InterpretationHistoryEntry) => {
+    setError(null)
+    if (entry.kind === 'fortune' && entry.year) {
+      setYear(entry.year)
+      setYearlyFortune(entry.year, entry.content)
+    }
+    setFortune(entry.content)
+  }, [setYearlyFortune])
 
   if (!chart) return null
 
@@ -382,6 +399,8 @@ ${yearlyContext}
           </div>
         )}
       </div>
+
+      <InterpretationHistory onSelect={handleSelectHistory} />
     </div>
   )
 }
