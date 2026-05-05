@@ -8,6 +8,7 @@ const PANEL_HEIGHT = 460
 
 export function PalaceDetailPanel() {
   const {
+    aiInterpretation,
     palaceInterpretations,
     palaceDetailStatus,
     selectedPalace,
@@ -47,6 +48,7 @@ export function PalaceDetailPanel() {
   const content = palaceInterpretations[selectedPalace]
   const isLoading = palaceDetailStatus === 'loading'
   const hasError = palaceDetailStatus === 'error'
+  const hasMainInterpretation = Boolean(aiInterpretation)
 
   return (
     <aside
@@ -108,6 +110,10 @@ export function PalaceDetailPanel() {
         ) : hasError ? (
           <p className="text-sm leading-relaxed text-misfortune">
             宫位详解生成失败，请重新点击「开始解读」。
+          </p>
+        ) : hasMainInterpretation ? (
+          <p className="text-sm leading-relaxed text-text-muted">
+            这条解读没有宫位详解数据。请重新点击「开始解读」生成新版宫位详解。
           </p>
         ) : (
           <p className="text-sm leading-relaxed text-text-muted">

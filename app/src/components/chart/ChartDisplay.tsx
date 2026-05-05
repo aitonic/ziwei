@@ -142,7 +142,7 @@ function StarTag({ star, showBrightness = true }: StarTagProps) {
 
 interface PalaceCardProps extends PalaceData {
   isSelected?: boolean
-  onClick?: () => void
+  onClick?: (event: React.MouseEvent<HTMLDivElement>) => void
 }
 
 function PalaceCard({
@@ -357,7 +357,7 @@ export function ChartDisplay() {
         key={key}
         {...palace}
         isSelected={isPalacePanelOpen && selectedPalace === palace.name}
-        onClick={() => openPalaceDetail(palace.name)}
+        onClick={(event) => openPalaceDetail(palace.name, getPanelPosition(event.currentTarget))}
       />
     )
   }
@@ -422,4 +422,22 @@ export function ChartDisplay() {
       </div>
     </div>
   )
+}
+
+function getPanelPosition(element: HTMLElement): { x: number; y: number } {
+  const rect = element.getBoundingClientRect()
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const panelWidth = Math.min(380, viewportWidth * 0.92)
+  const panelHeight = Math.min(460, viewportHeight * 0.7)
+  const rightSideX = rect.right + 12
+  const leftSideX = rect.left - panelWidth - 12
+  const x = rightSideX + panelWidth <= viewportWidth - 8
+    ? rightSideX
+    : Math.max(8, leftSideX)
+
+  return {
+    x: Math.min(Math.max(8, x), Math.max(8, viewportWidth - panelWidth - 8)),
+    y: Math.min(Math.max(8, rect.top), Math.max(8, viewportHeight - panelHeight - 8)),
+  }
 }

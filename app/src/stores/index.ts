@@ -57,7 +57,7 @@ interface ContentCacheState {
   selectedPalace: string | null
   isPalacePanelOpen: boolean
   palacePanelPosition: { x: number; y: number }
-  openPalaceDetail: (palaceName: string) => void
+  openPalaceDetail: (palaceName: string, position?: { x: number; y: number }) => void
   closePalaceDetail: () => void
   setPalacePanelPosition: (position: { x: number; y: number }) => void
 
@@ -104,7 +104,11 @@ export const useContentCacheStore = create<ContentCacheState>()((set) => ({
   setAiInterpretation: (content) => set({ aiInterpretation: content }),
   setPalaceInterpretations: (content) => set({ palaceInterpretations: content }),
   setPalaceDetailStatus: (status) => set({ palaceDetailStatus: status }),
-  openPalaceDetail: (palaceName) => set({ selectedPalace: palaceName, isPalacePanelOpen: true }),
+  openPalaceDetail: (palaceName, position) => set((state) => ({
+    selectedPalace: palaceName,
+    isPalacePanelOpen: true,
+    palacePanelPosition: position || state.palacePanelPosition,
+  })),
   closePalaceDetail: () => set({ isPalacePanelOpen: false }),
   setPalacePanelPosition: (position) => set({ palacePanelPosition: position }),
 
