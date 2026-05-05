@@ -54,7 +54,14 @@ The JSON object must have this exact shape:
   }
 }
 
-For each palace value, write 120-220 Chinese characters. Use this order inside each value: conclusion, evidence, advice. Keep the twelve palace keys unchanged.`
+Hard requirements:
+- You must return all 12 palace keys.
+- Every palace value must be a non-empty string.
+- Do not omit difficult, empty-star, or borrowed-star palaces.
+- If a palace has no main star, still write that palace value by borrowing the opposite palace.
+- For each palace value, write 120-220 Chinese characters.
+- Use this order inside each value: conclusion, evidence, advice.
+- Keep the twelve palace keys unchanged.`
 
 export function buildPalaceDetailMessages({
   birthInfo,
@@ -97,8 +104,9 @@ export function parsePalaceDetailsJson(rawText: string): Record<string, string> 
     }
   }
 
-  if (Object.keys(details).length === 0) {
-    throw new Error('No palace details found')
+  const missingPalaces = PALACE_NAMES.filter((palaceName) => !details[palaceName])
+  if (missingPalaces.length > 0) {
+    throw new Error(`Missing palace details: ${missingPalaces.join('、')}`)
   }
 
   return details

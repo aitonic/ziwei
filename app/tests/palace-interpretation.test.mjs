@@ -21,24 +21,32 @@ test('builds a separate JSON-only palace detail prompt', () => {
   assert.match(messages[1].content, /# Variable Input/)
 })
 
-test('parses valid palace JSON and normalizes palace names', () => {
+test('parses complete palace JSON and normalizes palace names', () => {
   const details = parsePalaceDetailsJson(JSON.stringify({
     palaces: {
       命宮: '命宫细解',
+      兄弟宫: '兄弟细解',
+      夫妻宫: '夫妻细解',
+      子女宫: '子女细解',
       财帛宫: '财帛细解',
-      其他: 'ignore',
+      疾厄宫: '疾厄细解',
+      迁移宫: '迁移细解',
+      交友宫: '交友细解',
+      官禄宫: '官禄细解',
+      田宅宫: '田宅细解',
+      福德宫: '福德细解',
+      父母宫: '父母细解',
     },
   }))
 
-  assert.deepEqual(details, {
-    命宫: '命宫细解',
-    财帛宫: '财帛细解',
-  })
+  assert.equal(Object.keys(details).length, 12)
+  assert.equal(details.命宫, '命宫细解')
+  assert.equal(details.财帛宫, '财帛细解')
 })
 
-test('rejects palace JSON without usable palace content', () => {
+test('rejects palace JSON without every required palace', () => {
   assert.throws(
-    () => parsePalaceDetailsJson('{"palaces":{"命宫":"   "}}'),
-    /No palace details/
+    () => parsePalaceDetailsJson('{"palaces":{"命宫":"命宫细解"}}'),
+    /Missing palace details/
   )
 })
