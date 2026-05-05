@@ -152,14 +152,15 @@ const PROVIDER_CONFIGS = {
 function readServerLLMConfig(env, clientConfig = {}) {
   const provider = env.LLM_PROVIDER || clientConfig.provider || 'kimi'
   const keyPrefix = provider.toUpperCase()
+  const isCustomProvider = provider === 'custom'
 
   return {
     provider,
     apiKey: env.LLM_API_KEY || env[`${keyPrefix}_API_KEY`] || '',
-    baseUrl: env.LLM_BASE_URL || env[`${keyPrefix}_BASE_URL`] || clientConfig.baseUrl || '',
-    model: env.LLM_MODEL || env[`${keyPrefix}_MODEL`] || clientConfig.model || '',
-    enableThinking: readBoolean(env.LLM_ENABLE_THINKING, clientConfig.enableThinking),
-    enableWebSearch: readBoolean(env.LLM_ENABLE_WEB_SEARCH, clientConfig.enableWebSearch),
+    baseUrl: isCustomProvider ? env.LLM_BASE_URL || clientConfig.baseUrl || '' : '',
+    model: isCustomProvider ? env.LLM_MODEL || clientConfig.model || '' : '',
+    enableThinking: isCustomProvider ? readBoolean(env.LLM_ENABLE_THINKING, clientConfig.enableThinking) : false,
+    enableWebSearch: isCustomProvider ? readBoolean(env.LLM_ENABLE_WEB_SEARCH, clientConfig.enableWebSearch) : false,
   }
 }
 

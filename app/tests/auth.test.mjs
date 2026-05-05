@@ -120,6 +120,40 @@ test('worker proxies LLM requests with server env key', async () => {
   assert.equal(await response.text(), 'hello')
 })
 
+test('worker ignores custom defaults when provider is overridden', async () => {
+  const env = createEnv()
+  env.LLM_PROVIDER = 'deepseek'
+  env.LLM_API_KEY = 'server-key'
+  env.LLM_MODEL = 'gpt-5.5'
+  env.LLM_BASE_URL = 'https://cpa.aitonic.me/v1'
+  env.LLM_ENABLE_THINKING = 'true'
+  env.LLM_ENABLE_WEB_SEARCH = 'true'
+  env.FETCH = async (url, init) => {
+    assert.equal(url, 'https://api.deepseek.com/v1/chat/completions')
+    const body = JSON.parse(init.body)
+    assert.equal(body.model, 'deepseek-chat')
+    assert.equal(body.tools, undefined)
+    return new Response('data: {"choices":[{"delta":{"content":"deepseek"}}]}\n\ndata: [DONE]\n')
+  }
+
+  const response = await worker.fetch(
+    new Request('https://ziwei.example/api/llm', {
+      method: 'POST',
+      headers: {
+        Cookie: `${AUTH_COOKIE_NAME}=1`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
+    }),
+    env
+  )
+
+  assert.equal(response.status, 200)
+  assert.equal(await response.text(), 'deepseek')
+})
+
 test('worker rejects LLM requests without server key', async () => {
   const response = await worker.fetch(
     new Request('https://ziwei.example/api/llm', {
