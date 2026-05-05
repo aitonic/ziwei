@@ -35,6 +35,45 @@ test('does not add empty interpretation content', () => {
   assert.deepEqual(history, [])
 })
 
+test('does not add consecutive duplicate interpretation content', () => {
+  const first = createHistoryEntry({
+    kind: 'chart',
+    title: '命盘解读',
+    content: 'same content',
+    createdAt: 1,
+  })
+  const duplicate = createHistoryEntry({
+    kind: 'chart',
+    title: '命盘解读',
+    content: 'same content',
+    createdAt: 2,
+  })
+
+  const history = prependHistoryEntry([first], duplicate)
+
+  assert.equal(history.length, 1)
+  assert.equal(history[0].id, first.id)
+})
+
+test('keeps same title when interpretation content changes', () => {
+  const first = createHistoryEntry({
+    kind: 'chart',
+    title: '命盘解读',
+    content: 'old content',
+    createdAt: 1,
+  })
+  const second = createHistoryEntry({
+    kind: 'chart',
+    title: '命盘解读',
+    content: 'new content',
+    createdAt: 2,
+  })
+
+  const history = prependHistoryEntry([first], second)
+
+  assert.deepEqual(history.map((entry) => entry.content), ['new content', 'old content'])
+})
+
 test('keeps chart and yearly histories independently', () => {
   const chartHistory = prependHistoryEntry([], createHistoryEntry({
     kind: 'chart',

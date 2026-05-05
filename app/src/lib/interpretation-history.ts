@@ -48,6 +48,11 @@ export function prependHistoryEntry(
     return history
   }
 
+  const latestEntry = history[0]
+  if (latestEntry?.kind === entry.kind && latestEntry.title === entry.title && latestEntry.content === entry.content) {
+    return history
+  }
+
   return [entry, ...history].slice(0, HISTORY_LIMIT)
 }
 

@@ -3,7 +3,7 @@
    丝滑流式输出 + 书法字体 + Markdown 渲染
    ============================================================ */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChartStore, useSettingsStore, useContentCacheStore } from '@/stores'
@@ -81,6 +81,7 @@ export function AIInterpretation() {
   const [displayText, setDisplayText] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const interpretingRef = useRef(false)
 
   // 组件挂载时，如果有缓存则直接显示
   useEffect(() => {
@@ -95,8 +96,10 @@ export function AIInterpretation() {
 
   const handleInterpret = useCallback(async () => {
     if (!chart || !birthInfo) return
+    if (interpretingRef.current) return
 
     // 重置状态
+    interpretingRef.current = true
     setLoading(true)
     setError(null)
     setAiInterpretation('')
@@ -169,6 +172,7 @@ export function AIInterpretation() {
       setPalaceDetailStatus('error')
       setError(err instanceof Error ? err.message : '解读失败，请重试')
     } finally {
+      interpretingRef.current = false
       setLoading(false)
     }
   }, [chart, birthInfo, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, setAiInterpretation, setPalaceInterpretations, setPalaceDetailStatus, addChartInterpretationHistory])
