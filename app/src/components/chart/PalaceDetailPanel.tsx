@@ -9,6 +9,7 @@ const PANEL_HEIGHT = 460
 export function PalaceDetailPanel() {
   const {
     palaceInterpretations,
+    palaceDetailStatus,
     selectedPalace,
     isPalacePanelOpen,
     palacePanelPosition,
@@ -44,6 +45,8 @@ export function PalaceDetailPanel() {
   if (!isPalacePanelOpen || !selectedPalace) return null
 
   const content = palaceInterpretations[selectedPalace]
+  const isLoading = palaceDetailStatus === 'loading'
+  const hasError = palaceDetailStatus === 'error'
 
   return (
     <aside
@@ -98,6 +101,14 @@ export function PalaceDetailPanel() {
               {content}
             </ReactMarkdown>
           </div>
+        ) : isLoading ? (
+          <p className="text-sm leading-relaxed text-text-muted">
+            宫位详解正在生成中，稍候再看。
+          </p>
+        ) : hasError ? (
+          <p className="text-sm leading-relaxed text-misfortune">
+            宫位详解生成失败，请重新点击「开始解读」。
+          </p>
         ) : (
           <p className="text-sm leading-relaxed text-text-muted">
             尚未生成宫位解读。请先点击「开始解读」。

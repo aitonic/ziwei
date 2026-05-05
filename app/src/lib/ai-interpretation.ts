@@ -66,26 +66,11 @@ const SYSTEM_PROMPT = `# ${PROMPT_VERSION}
 4. **输出习惯**：避免长篇铺陈同一宫位。每节先给结论，再列关键依据，最后给建议。
 
 # Output Contract
-必须严格输出两个顶层区块，且不得在区块外输出任何文字：
+必须严格输出一个顶层区块，且不得在区块外输出任何文字：
 
 <main_report>
 这里放主报告。主报告只保留综合判断、事业财运、婚姻情感、六亲人际、隐忧建议、命格金句；不要写十二宫逐宫细解。
 </main_report>
-
-<palace_details>
-<palace name="命宫">先结论，再依据，再建议。</palace>
-<palace name="兄弟宫">先结论，再依据，再建议。</palace>
-<palace name="夫妻宫">先结论，再依据，再建议。</palace>
-<palace name="子女宫">先结论，再依据，再建议。</palace>
-<palace name="财帛宫">先结论，再依据，再建议。</palace>
-<palace name="疾厄宫">先结论，再依据，再建议。</palace>
-<palace name="迁移宫">先结论，再依据，再建议。</palace>
-<palace name="交友宫">先结论，再依据，再建议。</palace>
-<palace name="官禄宫">先结论，再依据，再建议。</palace>
-<palace name="田宅宫">先结论，再依据，再建议。</palace>
-<palace name="福德宫">先结论，再依据，再建议。</palace>
-<palace name="父母宫">先结论，再依据，再建议。</palace>
-</palace_details>
 
 主报告请按照以下结构输出：
 
@@ -127,7 +112,7 @@ export function buildInterpretationMessages({
   context,
 }: BuildInterpretationMessagesParams): ChatMessage[] {
   const userMessage = `# Request Protocol
-请执行系统消息中的固定输出契约。保持 main_report 与 palace_details 两个顶层标签，不要输出代码块，不要把十二宫逐宫细解放入 main_report。十二宫名称必须使用：命宫、兄弟宫、夫妻宫、子女宫、财帛宫、疾厄宫、迁移宫、交友宫、官禄宫、田宅宫、福德宫、父母宫。
+请执行系统消息中的固定输出契约。只输出 main_report 顶层标签，不要输出代码块，不要写十二宫逐宫细解。
 
 # Variable Input
 
@@ -139,7 +124,7 @@ export function buildInterpretationMessages({
 ## 命盘资料
 ${context}
 
-请严格按系统消息中的固定章节和 XML-like 标签输出。`
+请严格按系统消息中的固定章节和 main_report 标签输出。`
 
   return [
     { role: 'system', content: SYSTEM_PROMPT },

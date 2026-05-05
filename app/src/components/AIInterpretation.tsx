@@ -14,6 +14,10 @@ import {
   parseInterpretationResponse,
   shouldRestoreCachedInterpretation,
 } from '@/lib/ai-interpretation'
+import {
+  buildPalaceDetailMessages,
+  parsePalaceDetailsJson,
+} from '@/lib/palace-interpretation'
 import { Button } from '@/components/ui'
 import { InterpretationHistory } from '@/components/history'
 import type { InterpretationHistoryEntry } from '@/lib/interpretation-history'
@@ -68,6 +72,7 @@ export function AIInterpretation() {
     chartInterpretationHistory,
     setAiInterpretation,
     setPalaceInterpretations,
+    setPalaceDetailStatus,
     addChartInterpretationHistory,
   } = useContentCacheStore()
   const currentSettings = providerSettings[provider]
@@ -95,6 +100,7 @@ export function AIInterpretation() {
     setError(null)
     setAiInterpretation('')
     setPalaceInterpretations({})
+    setPalaceDetailStatus('loading')
     setDisplayText('')
 
     try {
@@ -126,29 +132,56 @@ export function AIInterpretation() {
 
       const parsed = parseInterpretationResponse(rawText)
       setDisplayText(parsed.mainReport)
-      setPalaceInterpretations(parsed.palaceDetails)
       setAiInterpretation(parsed.mainReport)
+
+      let palaceDetails: Record<string, string> = {}
+      try {
+        const palaceMessages = buildPalaceDetailMessages({
+          birthInfo,
+          fiveElementsClass: chart.fiveElementsClass,
+          context: contextStr,
+        })
+        const palaceConfig: LLMConfig = {
+          ...config,
+          responseFormat: { type: 'json_object' },
+        }
+        let palaceRawText = ''
+
+        for await (const token of streamChat(palaceConfig, palaceMessages)) {
+          palaceRawText += token
+        }
+
+        palaceDetails = parsePalaceDetailsJson(palaceRawText)
+        setPalaceInterpretations(palaceDetails)
+        setPalaceDetailStatus('ready')
+      } catch {
+        setPalaceInterpretations({})
+        setPalaceDetailStatus('error')
+      }
+
       addChartInterpretationHistory({
         title: `${birthInfo.year}-${birthInfo.month}-${birthInfo.day} 命盘解读`,
         content: parsed.mainReport,
-        palaceDetails: parsed.palaceDetails,
+        palaceDetails,
       })
     } catch (err) {
+      setPalaceDetailStatus('error')
       setError(err instanceof Error ? err.message : '解读失败，请重试')
     } finally {
       setLoading(false)
     }
-  }, [chart, birthInfo, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, setAiInterpretation, setPalaceInterpretations, addChartInterpretationHistory])
+  }, [chart, birthInfo, provider, currentSettings, enableThinking, enableWebSearch, searchApiKey, setAiInterpretation, setPalaceInterpretations, setPalaceDetailStatus, addChartInterpretationHistory])
 
   const handleSelectHistory = useCallback((entry: InterpretationHistoryEntry) => {
     setError(null)
     setLoading(false)
     setDisplayText(entry.content)
     setPalaceInterpretations(entry.palaceDetails || {})
+    setPalaceDetailStatus(entry.palaceDetails && Object.keys(entry.palaceDetails).length > 0 ? 'ready' : 'idle')
     if (entry.kind === 'chart') {
       setAiInterpretation(entry.content)
     }
-  }, [setAiInterpretation, setPalaceInterpretations])
+  }, [setAiInterpretation, setPalaceInterpretations, setPalaceDetailStatus])
 
   if (!chart) return null
 

@@ -10,6 +10,7 @@ export interface LLMConfig {
   apiKey: string
   baseUrl?: string
   model?: string
+  responseFormat?: { type: 'json_object' }
   enableThinking?: boolean
   enableWebSearch?: boolean
   searchApiKey?: string  // Tavily API Key
@@ -244,27 +245,10 @@ async function* streamOpenAICompatible(
   config: LLMConfig,
   messages: ChatMessage[]
 ): AsyncGenerator<string> {
-  const { provider, apiKey, baseUrl, model, enableThinking, enableWebSearch, searchApiKey } = config
+  const { provider, apiKey, baseUrl, enableWebSearch, searchApiKey } = config
   const providerConfig = PROVIDER_CONFIGS[provider]
-
-  // 确定使用的模型（思考模式切换专用模型）
-  let useModel = model || providerConfig.defaultModel
-  if (enableThinking && !model) {
-    if (provider === 'deepseek') {
-      useModel = 'deepseek-v3.2-speciale'
-    } else if (provider === 'kimi') {
-      useModel = 'kimi-k2-thinking'
-    }
-  }
-
   const url = `${baseUrl || providerConfig.baseUrl}/chat/completions`
-
-  // 构建请求体
-  const requestBody: Record<string, unknown> = {
-    model: useModel,
-    messages,
-    stream: true,
-  }
+  const requestBody = buildOpenAICompatibleRequestBody(config, messages)
 
   // Kimi 原生搜索
   if (enableWebSearch && provider === 'kimi') {
@@ -329,6 +313,34 @@ async function* streamOpenAICompatible(
       }
     }
   }
+}
+
+export function buildOpenAICompatibleRequestBody(
+  config: LLMConfig,
+  messages: ChatMessage[]
+): Record<string, unknown> {
+  const providerConfig = PROVIDER_CONFIGS[config.provider]
+  let useModel = config.model || providerConfig.defaultModel
+
+  if (config.enableThinking && !config.model) {
+    if (config.provider === 'deepseek') {
+      useModel = 'deepseek-v3.2-speciale'
+    } else if (config.provider === 'kimi') {
+      useModel = 'kimi-k2-thinking'
+    }
+  }
+
+  const requestBody: Record<string, unknown> = {
+    model: useModel,
+    messages,
+    stream: true,
+  }
+
+  if (config.responseFormat) {
+    requestBody.response_format = config.responseFormat
+  }
+
+  return requestBody
 }
 
 /* ------------------------------------------------------------
@@ -540,6 +552,7 @@ async function* streamServerProxy(
         provider: config.provider,
         baseUrl: config.baseUrl,
         model: config.model,
+        responseFormat: config.responseFormat,
         enableThinking: config.enableThinking,
         enableWebSearch: config.enableWebSearch,
       },

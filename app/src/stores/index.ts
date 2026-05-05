@@ -52,6 +52,8 @@ interface ContentCacheState {
   setAiInterpretation: (content: string) => void
   palaceInterpretations: Record<string, string>
   setPalaceInterpretations: (content: Record<string, string>) => void
+  palaceDetailStatus: 'idle' | 'loading' | 'ready' | 'error'
+  setPalaceDetailStatus: (status: ContentCacheState['palaceDetailStatus']) => void
   selectedPalace: string | null
   isPalacePanelOpen: boolean
   palacePanelPosition: { x: number; y: number }
@@ -90,6 +92,7 @@ interface ContentCacheState {
 export const useContentCacheStore = create<ContentCacheState>()((set) => ({
   aiInterpretation: null,
   palaceInterpretations: {},
+  palaceDetailStatus: 'idle',
   selectedPalace: null,
   isPalacePanelOpen: false,
   palacePanelPosition: { x: 24, y: 96 },
@@ -100,6 +103,7 @@ export const useContentCacheStore = create<ContentCacheState>()((set) => ({
 
   setAiInterpretation: (content) => set({ aiInterpretation: content }),
   setPalaceInterpretations: (content) => set({ palaceInterpretations: content }),
+  setPalaceDetailStatus: (status) => set({ palaceDetailStatus: status }),
   openPalaceDetail: (palaceName) => set({ selectedPalace: palaceName, isPalacePanelOpen: true }),
   closePalaceDetail: () => set({ isPalacePanelOpen: false }),
   setPalacePanelPosition: (position) => set({ palacePanelPosition: position }),
@@ -149,6 +153,7 @@ export const useContentCacheStore = create<ContentCacheState>()((set) => ({
   clearAll: () => set({
     aiInterpretation: null,
     palaceInterpretations: {},
+    palaceDetailStatus: 'idle',
     selectedPalace: null,
     isPalacePanelOpen: false,
     yearlyFortune: {},

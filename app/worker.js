@@ -159,6 +159,7 @@ function readServerLLMConfig(env, clientConfig = {}) {
     apiKey: env.LLM_API_KEY || env[`${keyPrefix}_API_KEY`] || '',
     baseUrl: isCustomProvider ? env.LLM_BASE_URL || clientConfig.baseUrl || '' : '',
     model: isCustomProvider ? env.LLM_MODEL || clientConfig.model || '' : '',
+    responseFormat: clientConfig.responseFormat,
     enableThinking: isCustomProvider ? readBoolean(env.LLM_ENABLE_THINKING, clientConfig.enableThinking) : false,
     enableWebSearch: isCustomProvider ? readBoolean(env.LLM_ENABLE_WEB_SEARCH, clientConfig.enableWebSearch) : false,
   }
@@ -233,6 +234,10 @@ async function* streamOpenAIFromServer(config, messages, fetcher) {
     model: useModel,
     messages,
     stream: true,
+  }
+
+  if (config.responseFormat) {
+    requestBody.response_format = config.responseFormat
   }
 
   if (config.enableWebSearch && config.provider === 'kimi') {

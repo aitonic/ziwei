@@ -120,6 +120,35 @@ test('worker proxies LLM requests with server env key', async () => {
   assert.equal(await response.text(), 'hello')
 })
 
+test('worker forwards JSON response format to OpenAI compatible providers', async () => {
+  const env = createEnv()
+  env.LLM_PROVIDER = 'deepseek'
+  env.LLM_API_KEY = 'server-key'
+  env.FETCH = async (_url, init) => {
+    const body = JSON.parse(init.body)
+    assert.deepEqual(body.response_format, { type: 'json_object' })
+    return new Response('data: {"choices":[{"delta":{"content":"{}"}}]}\n\ndata: [DONE]\n')
+  }
+
+  const response = await worker.fetch(
+    new Request('https://ziwei.example/api/llm', {
+      method: 'POST',
+      headers: {
+        Cookie: `${AUTH_COOKIE_NAME}=1`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        config: { responseFormat: { type: 'json_object' } },
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
+    }),
+    env
+  )
+
+  assert.equal(response.status, 200)
+  assert.equal(await response.text(), '{}')
+})
+
 test('worker ignores custom defaults when provider is overridden', async () => {
   const env = createEnv()
   env.LLM_PROVIDER = 'deepseek'
