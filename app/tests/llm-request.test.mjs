@@ -13,4 +13,6 @@ test('builds OpenAI compatible JSON response format requests', () => {
   )
 
   assert.deepEqual(body.response_format, { type: 'json_object' })
+  assert.equal(body.stream, false)
+  assert.equal(body.max_tokens, 8000)
 })

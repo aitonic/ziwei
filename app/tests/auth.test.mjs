@@ -127,7 +127,9 @@ test('worker forwards JSON response format to OpenAI compatible providers', asyn
   env.FETCH = async (_url, init) => {
     const body = JSON.parse(init.body)
     assert.deepEqual(body.response_format, { type: 'json_object' })
-    return new Response('data: {"choices":[{"delta":{"content":"{}"}}]}\n\ndata: [DONE]\n')
+    assert.equal(body.stream, false)
+    assert.equal(body.max_tokens, 8000)
+    return Response.json({ choices: [{ message: { content: '{}' } }] })
   }
 
   const response = await worker.fetch(

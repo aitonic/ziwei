@@ -233,11 +233,12 @@ async function* streamOpenAIFromServer(config, messages, fetcher) {
   const requestBody = {
     model: useModel,
     messages,
-    stream: true,
+    stream: !config.responseFormat,
   }
 
   if (config.responseFormat) {
     requestBody.response_format = config.responseFormat
+    requestBody.max_tokens = 8000
   }
 
   if (config.enableWebSearch && config.provider === 'kimi') {
@@ -258,6 +259,13 @@ async function* streamOpenAIFromServer(config, messages, fetcher) {
 
   if (!response.ok) {
     throw new Error(`API Error: ${response.status} ${response.statusText}`)
+  }
+
+  if (config.responseFormat) {
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content
+    if (content) yield content
+    return
   }
 
   const reader = response.body?.getReader()
