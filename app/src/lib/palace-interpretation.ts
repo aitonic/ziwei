@@ -29,6 +29,24 @@ export const PALACE_NAMES = [
 ]
 
 const PALACE_NAME_SET = new Set(PALACE_NAMES)
+const PALACE_NAME_ALIASES: Record<string, string> = {
+  命: '命宫',
+  兄弟: '兄弟宫',
+  夫妻: '夫妻宫',
+  子女: '子女宫',
+  财帛: '财帛宫',
+  疾厄: '疾厄宫',
+  迁移: '迁移宫',
+  交友: '交友宫',
+  仆役: '交友宫',
+  僕役: '交友宫',
+  奴仆: '交友宫',
+  奴僕: '交友宫',
+  官禄: '官禄宫',
+  田宅: '田宅宫',
+  福德: '福德宫',
+  父母: '父母宫',
+}
 
 const PALACE_DETAIL_SYSTEM_PROMPT = `# PALACE_DETAIL_JSON_V1
 
@@ -103,7 +121,7 @@ export function parsePalaceDetailsJson(rawText: string): Record<string, string> 
   }
 
   for (const [rawName, rawContent] of Object.entries(palaces)) {
-    const palaceName = normalizePalaceName(rawName)
+    const palaceName = toPalaceDetailName(rawName)
     const content = typeof rawContent === 'string' ? rawContent.trim() : ''
 
     if (PALACE_NAME_SET.has(palaceName) && content) {
@@ -126,6 +144,8 @@ function stripJsonFence(rawText: string): string {
     .replace(/\s*```$/i, '')
 }
 
-function normalizePalaceName(name: string): string {
-  return name.trim().replaceAll('宮', '宫')
+export function toPalaceDetailName(name: string): string {
+  const normalizedName = name.trim().replaceAll('宮', '宫')
+  if (PALACE_NAME_SET.has(normalizedName)) return normalizedName
+  return PALACE_NAME_ALIASES[normalizedName] || normalizedName
 }

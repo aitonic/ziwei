@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useContentCacheStore } from '@/stores'
+import { toPalaceDetailName } from '@/lib/palace-interpretation'
 
 const PANEL_WIDTH = 380
 const PANEL_HEIGHT = 460
@@ -45,7 +46,8 @@ export function PalaceDetailPanel() {
 
   if (!isPalacePanelOpen || !selectedPalace) return null
 
-  const content = palaceInterpretations[selectedPalace]
+  const detailPalaceName = toPalaceDetailName(selectedPalace)
+  const content = palaceInterpretations[detailPalaceName]
   const isLoading = palaceDetailStatus === 'loading'
   const hasError = palaceDetailStatus === 'error'
   const hasMainInterpretation = Boolean(aiInterpretation)
@@ -72,7 +74,7 @@ export function PalaceDetailPanel() {
       >
         <div>
           <p className="text-xs text-text-muted">宫位详解</p>
-          <h3 className="text-base font-semibold text-gold">{selectedPalace}</h3>
+          <h3 className="text-base font-semibold text-gold">{detailPalaceName}</h3>
         </div>
         <button
           type="button"
