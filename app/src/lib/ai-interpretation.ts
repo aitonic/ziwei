@@ -18,6 +18,8 @@ export interface ParsedInterpretation {
   palaceDetails: Record<string, string>
 }
 
+const PROMPT_VERSION = 'PROMPT_CACHE_STABLE_V2'
+
 const PALACE_NAMES = [
   '命宫',
   '兄弟宫',
@@ -41,7 +43,9 @@ export function shouldRestoreCachedInterpretation(
   return Boolean(cachedInterpretation) && !displayText && !isLoading
 }
 
-const SYSTEM_PROMPT = `# PROMPT_CACHE_STABLE_V1
+const PALACE_NAME_SET = new Set(PALACE_NAMES)
+
+const SYSTEM_PROMPT = `# ${PROMPT_VERSION}
 
 # Role
 你是一位研习紫微斗数多年的资深命理师"星图先生"。你精通三合派（观星情格局）、飞星派（推四化轨迹）及钦天门（定气数机缘）。你的论命风格严谨客观，辞藻雅致沉稳，不故弄玄虚，亦不盲目迎合。
@@ -51,6 +55,9 @@ const SYSTEM_PROMPT = `# PROMPT_CACHE_STABLE_V1
 
 # Cache Discipline
 以下规则为固定推理与输出契约。请保持章节名、章节顺序、语气约束稳定，只根据用户消息中的命盘资料填充内容。先按固定章节成文，再在每节内部补充个性化判断。不要重复粘贴原始命盘资料。
+
+# Cache Prefix Layout
+本段以后到"Variable Input"以前均为稳定前缀。稳定前缀不得引用用户出生日期、性别、五行局、星曜落宫、流年或任何命盘变量。所有个性化内容只根据用户消息中"Variable Input"后的资料生成。若需要补足细节，只在固定章节内部补足，不新增顶层章节，不改动标签名称，不改动十二宫名称。
 
 # Analysis Constraints
 1. **语言风格**：严禁使用"灵魂底色""磁场""能量"等现代身心灵或互联网词汇。使用更具传统韵味的词汇，如"性情"、"格局"、"机缘"、"运势起伏"。
@@ -66,18 +73,18 @@ const SYSTEM_PROMPT = `# PROMPT_CACHE_STABLE_V1
 </main_report>
 
 <palace_details>
-<palace name="命宫">这里写命宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="兄弟宫">这里写兄弟宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="夫妻宫">这里写夫妻宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="子女宫">这里写子女宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="财帛宫">这里写财帛宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="疾厄宫">这里写疾厄宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="迁移宫">这里写迁移宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="交友宫">这里写交友宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="官禄宫">这里写官禄宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="田宅宫">这里写田宅宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="福德宫">这里写福德宫详细解读，先结论，再依据，再建议。</palace>
-<palace name="父母宫">这里写父母宫详细解读，先结论，再依据，再建议。</palace>
+<palace name="命宫">先结论，再依据，再建议。</palace>
+<palace name="兄弟宫">先结论，再依据，再建议。</palace>
+<palace name="夫妻宫">先结论，再依据，再建议。</palace>
+<palace name="子女宫">先结论，再依据，再建议。</palace>
+<palace name="财帛宫">先结论，再依据，再建议。</palace>
+<palace name="疾厄宫">先结论，再依据，再建议。</palace>
+<palace name="迁移宫">先结论，再依据，再建议。</palace>
+<palace name="交友宫">先结论，再依据，再建议。</palace>
+<palace name="官禄宫">先结论，再依据，再建议。</palace>
+<palace name="田宅宫">先结论，再依据，再建议。</palace>
+<palace name="福德宫">先结论，再依据，再建议。</palace>
+<palace name="父母宫">先结论，再依据，再建议。</palace>
 </palace_details>
 
 主报告请按照以下结构输出：
@@ -119,7 +126,10 @@ export function buildInterpretationMessages({
   fiveElementsClass,
   context,
 }: BuildInterpretationMessagesParams): ChatMessage[] {
-  const userMessage = `请解读以下命盘。
+  const userMessage = `# Request Protocol
+请执行系统消息中的固定输出契约。保持 main_report 与 palace_details 两个顶层标签，不要输出代码块，不要把十二宫逐宫细解放入 main_report。十二宫名称必须使用：命宫、兄弟宫、夫妻宫、子女宫、财帛宫、疾厄宫、迁移宫、交友宫、官禄宫、田宅宫、福德宫、父母宫。
+
+# Variable Input
 
 ## 基本信息
 - 阳历：${birthInfo.year}年${birthInfo.month}月${birthInfo.day}日
@@ -140,16 +150,49 @@ ${context}
 export function parseInterpretationResponse(rawText: string): ParsedInterpretation {
   const mainReportMatch = rawText.match(/<main_report>\s*([\s\S]*?)\s*<\/main_report>/i)
   const mainReport = (mainReportMatch?.[1] || rawText).trim()
+  const palaceDetails = parseTaggedPalaceDetails(rawText)
+
+  if (Object.keys(palaceDetails).length > 0) {
+    return { mainReport, palaceDetails }
+  }
+
+  return { mainReport, palaceDetails: parseMarkdownPalaceDetails(rawText) }
+}
+
+function parseTaggedPalaceDetails(rawText: string): Record<string, string> {
   const palaceDetails: Record<string, string> = {}
-  const palacePattern = /<palace\s+name=["']([^"']+)["']>\s*([\s\S]*?)\s*<\/palace>/gi
+  const palacePattern = /<palace\b[^>]*\bname\s*=\s*["'“”]?([^"'“”>\s]+)["'“”]?[^>]*>\s*([\s\S]*?)\s*<\/palace>/gi
 
   for (const match of rawText.matchAll(palacePattern)) {
-    const palaceName = match[1]?.trim()
+    const palaceName = normalizePalaceName(match[1])
     const content = match[2]?.trim()
-    if (palaceName && content && PALACE_NAMES.includes(palaceName)) {
+    if (palaceName && content && PALACE_NAME_SET.has(palaceName)) {
       palaceDetails[palaceName] = content
     }
   }
 
-  return { mainReport, palaceDetails }
+  return palaceDetails
+}
+
+function parseMarkdownPalaceDetails(rawText: string): Record<string, string> {
+  const palaceBlock = rawText.match(/<palace_details>\s*([\s\S]*?)\s*<\/palace_details>/i)?.[1] || rawText
+  const details: Record<string, string> = {}
+  const headingPattern = new RegExp(
+    `(?:^|\\n)#{1,4}\\s*(${PALACE_NAMES.join('|').replaceAll('宫', '[宫宮]')})\\s*\\n([\\s\\S]*?)(?=\\n#{1,4}\\s*(?:${PALACE_NAMES.join('|').replaceAll('宫', '[宫宮]')})\\s*\\n|$)`,
+    'g'
+  )
+
+  for (const match of palaceBlock.matchAll(headingPattern)) {
+    const palaceName = normalizePalaceName(match[1])
+    const content = match[2]?.trim()
+    if (palaceName && content && PALACE_NAME_SET.has(palaceName)) {
+      details[palaceName] = content
+    }
+  }
+
+  return details
+}
+
+function normalizePalaceName(name: string | undefined): string {
+  return (name || '').trim().replaceAll('宮', '宫')
 }

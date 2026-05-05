@@ -9,6 +9,7 @@ export interface InterpretationHistoryEntry {
   content: string
   createdAt: number
   year?: number
+  palaceDetails?: Record<string, string>
 }
 
 interface CreateHistoryEntryParams {
@@ -17,6 +18,7 @@ interface CreateHistoryEntryParams {
   content: string
   createdAt?: number
   year?: number
+  palaceDetails?: Record<string, string>
 }
 
 export function createHistoryEntry({
@@ -25,6 +27,7 @@ export function createHistoryEntry({
   content,
   createdAt = Date.now(),
   year,
+  palaceDetails,
 }: CreateHistoryEntryParams): InterpretationHistoryEntry {
   return {
     id: `${kind}-${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
@@ -33,6 +36,7 @@ export function createHistoryEntry({
     content,
     createdAt,
     year,
+    palaceDetails,
   }
 }
 

@@ -25,11 +25,13 @@ test('builds a stable cache-friendly prompt shape', () => {
 
   assert.equal(messages.length, 2)
   assert.equal(messages[0].role, 'system')
-  assert.match(messages[0].content, /PROMPT_CACHE_STABLE_V1/)
+  assert.match(messages[0].content, /PROMPT_CACHE_STABLE_V2/)
   assert.match(messages[0].content, /先按固定章节成文/)
   assert.match(messages[0].content, /<main_report>/)
   assert.match(messages[0].content, /<palace name="命宫">/)
   assert.equal(messages[1].role, 'user')
+  assert.match(messages[1].content, /# Request Protocol/)
+  assert.match(messages[1].content, /# Variable Input/)
   assert.match(messages[1].content, /## 基本信息/)
   assert.match(messages[1].content, /## 命盘资料/)
 })
@@ -58,4 +60,39 @@ test('falls back to raw text when structured main report is missing', () => {
 
   assert.equal(parsed.mainReport, 'plain report')
   assert.deepEqual(parsed.palaceDetails, {})
+})
+
+test('parses palace tags with spaced attributes and traditional palace names', () => {
+  const parsed = parseInterpretationResponse(`
+<main_report>主报告</main_report>
+<palace_details>
+<palace name = "命宮">
+命宫细解
+</palace>
+<palace name=财帛宫>财帛细解</palace>
+</palace_details>
+`)
+
+  assert.deepEqual(parsed.palaceDetails, {
+    命宫: '命宫细解',
+    财帛宫: '财帛细解',
+  })
+})
+
+test('parses markdown palace details when the model misses palace tags', () => {
+  const parsed = parseInterpretationResponse(`
+<main_report>主报告</main_report>
+<palace_details>
+### 命宫
+命宫细解
+
+### 兄弟宮
+兄弟细解
+</palace_details>
+`)
+
+  assert.deepEqual(parsed.palaceDetails, {
+    命宫: '命宫细解',
+    兄弟宫: '兄弟细解',
+  })
 })

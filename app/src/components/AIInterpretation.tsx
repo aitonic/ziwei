@@ -131,6 +131,7 @@ export function AIInterpretation() {
       addChartInterpretationHistory({
         title: `${birthInfo.year}-${birthInfo.month}-${birthInfo.day} 命盘解读`,
         content: parsed.mainReport,
+        palaceDetails: parsed.palaceDetails,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : '解读失败，请重试')
@@ -143,7 +144,7 @@ export function AIInterpretation() {
     setError(null)
     setLoading(false)
     setDisplayText(entry.content)
-    setPalaceInterpretations({})
+    setPalaceInterpretations(entry.palaceDetails || {})
     if (entry.kind === 'chart') {
       setAiInterpretation(entry.content)
     }

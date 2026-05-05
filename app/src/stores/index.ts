@@ -75,6 +75,7 @@ interface ContentCacheState {
   addChartInterpretationHistory: (entry: {
     title: string
     content: string
+    palaceDetails?: Record<string, string>
   }) => void
   addYearlyFortuneHistory: (entry: {
     title: string
