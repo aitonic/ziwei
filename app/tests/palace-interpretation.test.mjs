@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   buildPalaceDetailMessages,
   parsePalaceDetailsJson,
+  toPalaceDetailName,
 } from '../src/lib/palace-interpretation.ts'
 
 test('builds a separate JSON-only palace detail prompt', () => {
@@ -54,4 +55,11 @@ test('rejects palace JSON without every required palace', () => {
     () => parsePalaceDetailsJson('{"palaces":{"命宫":"命宫细解"}}'),
     /Missing palace details/
   )
+})
+
+test('normalizes chart palace names to detail keys', () => {
+  assert.equal(toPalaceDetailName('夫妻'), '夫妻宫')
+  assert.equal(toPalaceDetailName('财帛'), '财帛宫')
+  assert.equal(toPalaceDetailName('仆役'), '交友宫')
+  assert.equal(toPalaceDetailName('命宮'), '命宫')
 })

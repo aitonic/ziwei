@@ -9,6 +9,7 @@
 
 import { useChartStore, useContentCacheStore } from '@/stores'
 import type { FunctionalAstrolabe } from '@/lib/astro'
+import { toPalaceDetailName } from '@/lib/palace-interpretation'
 import { PalaceDetailPanel } from './PalaceDetailPanel'
 
 /* ------------------------------------------------------------
@@ -356,8 +357,8 @@ export function ChartDisplay() {
       <PalaceCard
         key={key}
         {...palace}
-        isSelected={isPalacePanelOpen && selectedPalace === palace.name}
-        onClick={(event) => openPalaceDetail(palace.name, getPanelPosition(event.currentTarget))}
+        isSelected={isPalacePanelOpen && selectedPalace === toPalaceDetailName(palace.name)}
+        onClick={(event) => openPalaceDetail(toPalaceDetailName(palace.name), getPanelPosition(event.currentTarget))}
       />
     )
   }
