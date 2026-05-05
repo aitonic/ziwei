@@ -61,7 +61,14 @@ Hard requirements:
 - If a palace has no main star, still write that palace value by borrowing the opposite palace.
 - For each palace value, write 120-220 Chinese characters.
 - Use this order inside each value: conclusion, evidence, advice.
-- Keep the twelve palace keys unchanged.`
+- Keep the twelve palace keys unchanged.
+
+Content requirements for each palace value:
+- 宫位主题：说明该宫主管的人生领域，不要只复述宫名。
+- 星曜依据：引用本宫主星、辅星、四化、煞曜；若本宫无主星，明确说明借对宫。
+- 吉凶判断：先讲优势，再讲隐忧，避免只报喜或只报忧。
+- 行动建议：给出具体可执行建议，不写空泛鸡汤。
+- Do not write generic fortune-telling. Each palace value must mention at least two concrete chart factors from that palace or its opposite palace.`
 
 export function buildPalaceDetailMessages({
   birthInfo,
